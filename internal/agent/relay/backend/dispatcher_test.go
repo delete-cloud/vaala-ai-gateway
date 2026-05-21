@@ -4,11 +4,12 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/VaalaCat/ai-gateway/internal/agent/relay/state"
 	"github.com/VaalaCat/ai-gateway/internal/agent/relay/backend/legacy"
 	"github.com/VaalaCat/ai-gateway/internal/agent/relay/backend/native"
 	"github.com/VaalaCat/ai-gateway/internal/agent/relay/backend/passthrough"
+	"github.com/VaalaCat/ai-gateway/internal/agent/relay/state"
 	"github.com/VaalaCat/ai-gateway/internal/agent/relay/trace"
+	"github.com/VaalaCat/ai-gateway/internal/consts"
 	"github.com/VaalaCat/ai-gateway/internal/models"
 )
 
@@ -142,6 +143,50 @@ func TestDispatcherFinalizesTokenCounts(t *testing.T) {
 	}
 	if fake.callCount != 1 {
 		t.Errorf("backend should be called exactly once, got %d", fake.callCount)
+	}
+}
+
+func TestDispatcherCountsSuccessfulCopilotRequestsAsOneUse(t *testing.T) {
+	fake := &fakeBackend{result: state.AttemptResult{PromptTokens: 123, CompletionTokens: 456, ResponseText: "ok"}}
+	d := &Dispatcher{Backends: map[state.RelayMode]Backend{state.ModeNative: fake}}
+	rctx := &state.RelayContext{
+		Input: state.RelayInput{Body: []byte(`{"model":"gpt-4","messages":[{"role":"user","content":"hi"}]}`)},
+		State: &state.RelayState{Recorder: trace.NewRecorder(false, 0)},
+	}
+
+	res := d.Dispatch(rctx, state.Attempt{
+		Mode:      state.ModeNative,
+		RealModel: "gpt-4",
+		Channel:   &models.Channel{Type: consts.ChannelTypeGitHubCopilot},
+	})
+
+	if res.PromptTokens != 1 || res.CompletionTokens != 0 {
+		t.Fatalf("copilot usage = %d/%d, want 1/0", res.PromptTokens, res.CompletionTokens)
+	}
+	if res.CacheReadTokens != 0 || res.CacheWriteTokens != 0 {
+		t.Fatalf("copilot cache tokens = %d/%d, want 0/0", res.CacheReadTokens, res.CacheWriteTokens)
+	}
+	if res.TokenSource != "copilot_request" {
+		t.Fatalf("TokenSource = %q, want copilot_request", res.TokenSource)
+	}
+}
+
+func TestDispatcherDoesNotCountFailedCopilotRequests(t *testing.T) {
+	fake := &fakeBackend{result: state.AttemptResult{Err: errors.New("upstream failed")}}
+	d := &Dispatcher{Backends: map[state.RelayMode]Backend{state.ModeNative: fake}}
+	rctx := &state.RelayContext{
+		Input: state.RelayInput{Body: []byte(`{"model":"gpt-4","messages":[{"role":"user","content":"hi"}]}`)},
+		State: &state.RelayState{Recorder: trace.NewRecorder(false, 0)},
+	}
+
+	res := d.Dispatch(rctx, state.Attempt{
+		Mode:      state.ModeNative,
+		RealModel: "gpt-4",
+		Channel:   &models.Channel{Type: consts.ChannelTypeGitHubCopilot},
+	})
+
+	if res.PromptTokens != 0 || res.CompletionTokens != 0 || res.TokenSource == "copilot_request" {
+		t.Fatalf("failed copilot request should not be counted, got usage=%d/%d source=%q", res.PromptTokens, res.CompletionTokens, res.TokenSource)
 	}
 }
 

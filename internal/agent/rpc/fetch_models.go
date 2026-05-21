@@ -13,6 +13,7 @@ import (
 	"github.com/QuantumNous/new-api/relay/channel/gemini"
 	"github.com/QuantumNous/new-api/relay/channel/ollama"
 	"github.com/VaalaCat/ai-gateway/internal/consts"
+	"github.com/VaalaCat/ai-gateway/internal/pkg/copilot"
 	"github.com/VaalaCat/ai-gateway/internal/pkg/httputil"
 )
 
@@ -37,7 +38,9 @@ func HandleFetchModels(_ context.Context, params json.RawMessage) (any, error) {
 
 	baseURL := p.BaseURL
 	if baseURL == "" {
-		if p.Type > 0 && p.Type < len(newAPIConstant.ChannelBaseURLs) {
+		if p.Type == consts.ChannelTypeGitHubCopilot {
+			baseURL = copilot.DefaultBaseURL
+		} else if p.Type > 0 && p.Type < len(newAPIConstant.ChannelBaseURLs) {
 			baseURL = newAPIConstant.ChannelBaseURLs[p.Type]
 		}
 		if baseURL == "" {
@@ -47,6 +50,13 @@ func HandleFetchModels(_ context.Context, params json.RawMessage) (any, error) {
 
 	// Provider-specific model fetching
 	switch p.Type {
+	case consts.ChannelTypeGitHubCopilot:
+		client := httputil.NewClient(p.ProxyURL, 15*time.Second)
+		models, err := copilot.FetchModels(context.Background(), client, baseURL, p.Key)
+		if err != nil {
+			return &FetchModelsResult{Models: []string{}, Error: fmt.Sprintf("fetch github copilot models failed: %v", err)}, nil
+		}
+		return &FetchModelsResult{Models: models}, nil
 	case newAPIConstant.ChannelTypeGemini:
 		models, err := gemini.FetchGeminiModels(baseURL, p.Key, p.ProxyURL)
 		if err != nil {

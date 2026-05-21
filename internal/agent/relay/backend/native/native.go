@@ -12,8 +12,10 @@ import (
 	"github.com/VaalaCat/ai-gateway/internal/agent/relay/trace"
 	_ "github.com/VaalaCat/ai-gateway/internal/agent/relay/transform" // register IR transformers via init()
 	"github.com/VaalaCat/ai-gateway/internal/agent/relay/upstream"
+	"github.com/VaalaCat/ai-gateway/internal/consts"
 	"github.com/VaalaCat/ai-gateway/internal/models"
 	"github.com/VaalaCat/ai-gateway/internal/pkg/app"
+	"github.com/VaalaCat/ai-gateway/internal/pkg/copilot"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -56,6 +58,9 @@ func (b *Backend) Relay(rctx *state.RelayContext, a state.Attempt) state.Attempt
 	}
 
 	outboundBody = applyNativeOverrides(upstreamReq, outboundBody, cfg, logger)
+	if ch.Type == consts.ChannelTypeGitHubCopilot {
+		copilot.ApplyHeaders(upstreamReq, outboundBody, ch.Key)
+	}
 
 	rec.WithOutbound(upstreamReq, outboundBody, ch)
 	rec.WithStage(trace.StageUpstreamDispatch)
@@ -281,8 +286,7 @@ func applyNativeOverrides(upstreamReq *http.Request, outboundBody []byte, cfg *c
 // 以及对应的 inbound / outbound codec 实例。任一 codec 未注册都返回 error，由调用方
 // 包成 state.AttemptResult{Err: ...}。
 func resolveNativeCodecs(ch *models.Channel, inboundProto codec.Protocol, modelName string) (codec.Protocol, codec.InboundCodec, codec.OutboundCodec, error) {
-	rules := upstream.ChannelOverrideRulesFor(ch)
-	override := upstream.ResolveOverride(rules, modelName)
+	override := upstream.EffectiveOverrideFor(ch, modelName)
 	outboundProto := codec.NegotiateOutboundProtocol(inboundProto, ch.Type, ch.SupportedAPITypes, ch.Endpoints, override)
 
 	inboundCodec := codec.GetInbound(inboundProto)

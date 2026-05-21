@@ -1,6 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildQuery } from "./client";
-import type { Channel, ChannelTypeMeta, ChannelTestResponse, ChannelTestParams, PaginatedResponse, PaginatedParams } from "@/lib/types";
+import type {
+  Channel,
+  ChannelTypeMeta,
+  ChannelTestResponse,
+  ChannelTestParams,
+  CopilotDevicePollResponse,
+  CopilotDeviceStartResponse,
+  PaginatedResponse,
+  PaginatedParams,
+} from "@/lib/types";
 
 interface QueryOptions {
   enabled?: boolean;
@@ -56,6 +65,20 @@ export function useFetchUpstreamModels() {
   return useMutation({
     mutationFn: (body: { base_url: string; key: string; type: number; endpoints?: string; proxy_url?: string; agent_id?: string }) =>
       api.post<{ models: string[]; error?: string }>("/admin/channels/fetch-models", body),
+  });
+}
+
+export function useStartCopilotDeviceLogin() {
+  return useMutation({
+    mutationFn: (body: { enterprise_url?: string }) =>
+      api.post<CopilotDeviceStartResponse>("/admin/channels/copilot/device/start", body),
+  });
+}
+
+export function usePollCopilotDeviceLogin() {
+  return useMutation({
+    mutationFn: (body: { device_code: string; enterprise_url?: string }) =>
+      api.post<CopilotDevicePollResponse>("/admin/channels/copilot/device/poll", body),
   });
 }
 

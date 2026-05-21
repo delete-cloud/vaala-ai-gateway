@@ -11,7 +11,9 @@ import (
 	"strings"
 
 	"github.com/VaalaCat/ai-gateway/internal/agent/relay/codec"
+	"github.com/VaalaCat/ai-gateway/internal/consts"
 	"github.com/VaalaCat/ai-gateway/internal/models"
+	"github.com/VaalaCat/ai-gateway/internal/pkg/copilot"
 	"go.uber.org/zap"
 )
 
@@ -311,6 +313,23 @@ func ResolveOverride(rules *ChannelOverrideRules, modelName string) map[codec.Pr
 
 	winning := matches[0].rule
 	return expandRuleOverrides(winning)
+}
+
+func EffectiveOverrideFor(ch *models.Channel, modelName string) map[codec.Protocol]codec.Protocol {
+	rules := ChannelOverrideRulesFor(ch)
+	override := ResolveOverride(rules, modelName)
+	if len(override) > 0 || ch == nil || ch.Type != consts.ChannelTypeGitHubCopilot {
+		return override
+	}
+	raw := copilot.ProtocolOverride(modelName)
+	if len(raw) == 0 {
+		return nil
+	}
+	out := make(map[codec.Protocol]codec.Protocol, len(raw))
+	for inbound, target := range raw {
+		out[codec.Protocol(inbound)] = codec.Protocol(target)
+	}
+	return out
 }
 
 // validInboundProtocols enumerates all codec-supported inbound protocols.

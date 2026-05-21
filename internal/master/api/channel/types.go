@@ -108,6 +108,31 @@ type FetchModelsResponse struct {
 	Error  string   `json:"error,omitempty"`
 }
 
+type CopilotDeviceStartRequest struct {
+	EnterpriseURL string `json:"enterprise_url"`
+}
+
+type CopilotDeviceStartResponse struct {
+	VerificationURI string `json:"verification_uri"`
+	UserCode        string `json:"user_code"`
+	DeviceCode      string `json:"device_code"`
+	Interval        int    `json:"interval"`
+	BaseURL         string `json:"base_url"`
+	EnterpriseURL   string `json:"enterprise_url,omitempty"`
+}
+
+type CopilotDevicePollRequest struct {
+	DeviceCode    string `json:"device_code" binding:"required"`
+	EnterpriseURL string `json:"enterprise_url"`
+}
+
+type CopilotDevicePollResponse struct {
+	Status      string `json:"status"`
+	AccessToken string `json:"access_token,omitempty"`
+	Interval    int    `json:"interval,omitempty"`
+	Error       string `json:"error,omitempty"`
+}
+
 type TypeMeta struct {
 	ID      int    `json:"id"`
 	Name    string `json:"name"`

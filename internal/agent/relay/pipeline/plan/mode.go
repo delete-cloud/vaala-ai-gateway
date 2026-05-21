@@ -47,8 +47,7 @@ func shouldUseLegacy(ch *models.Channel, inboundProto codec.Protocol, modelName 
 		return true
 	}
 	// inbound / outbound codec 未注册同样走 legacy
-	rules := upstream.ChannelOverrideRulesFor(ch)
-	override := upstream.ResolveOverride(rules, modelName)
+	override := upstream.EffectiveOverrideFor(ch, modelName)
 	outboundProto := codec.NegotiateOutboundProtocol(inboundProto, ch.Type, ch.SupportedAPITypes, ch.Endpoints, override)
 	if codec.GetInbound(inboundProto) == nil || codec.GetOutbound(outboundProto) == nil {
 		return true
@@ -62,8 +61,7 @@ func shouldPassthrough(ch *models.Channel, inboundProto codec.Protocol, modelNam
 	if ch == nil || !ch.PassthroughEnabled {
 		return false
 	}
-	rules := upstream.ChannelOverrideRulesFor(ch)
-	override := upstream.ResolveOverride(rules, modelName)
+	override := upstream.EffectiveOverrideFor(ch, modelName)
 	outboundProto := codec.NegotiateOutboundProtocol(inboundProto, ch.Type, ch.SupportedAPITypes, ch.Endpoints, override)
 	return inboundProto == outboundProto
 }

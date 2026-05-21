@@ -6,6 +6,7 @@ import (
 	"unicode"
 
 	newAPIConstant "github.com/QuantumNous/new-api/constant"
+	"github.com/VaalaCat/ai-gateway/internal/consts"
 	"github.com/VaalaCat/ai-gateway/internal/master/api"
 	"github.com/VaalaCat/ai-gateway/internal/pkg/app"
 )
@@ -18,11 +19,15 @@ func (h *Handler) Types(_ *app.Context, _ api.EmptyRequest) ([]TypeMeta, error) 
 		}
 		ids = append(ids, id)
 	}
+	ids = append(ids, consts.ChannelTypeGitHubCopilot)
 	sort.Ints(ids)
 
 	items := make([]TypeMeta, 0, len(ids))
 	for _, id := range ids {
 		name := newAPIConstant.GetChannelTypeName(id)
+		if id == consts.ChannelTypeGitHubCopilot {
+			name = "GitHub Copilot"
+		}
 		items = append(items, TypeMeta{
 			ID:      id,
 			Name:    name,

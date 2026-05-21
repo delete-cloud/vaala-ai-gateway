@@ -379,6 +379,22 @@ export interface ChannelTestParams {
   agent_id?: string;
 }
 
+export interface CopilotDeviceStartResponse {
+  verification_uri: string;
+  user_code: string;
+  device_code: string;
+  interval: number;
+  base_url: string;
+  enterprise_url?: string;
+}
+
+export interface CopilotDevicePollResponse {
+  status: "pending" | "slow_down" | "success" | "failed";
+  access_token?: string;
+  interval?: number;
+  error?: string;
+}
+
 export interface PaginatedResponse<T> {
   data: T[];
   total: number;

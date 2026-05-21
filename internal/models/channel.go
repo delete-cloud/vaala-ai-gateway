@@ -1,6 +1,9 @@
 package models
 
-import newAPIConstant "github.com/QuantumNous/new-api/constant"
+import (
+	newAPIConstant "github.com/QuantumNous/new-api/constant"
+	"github.com/VaalaCat/ai-gateway/internal/consts"
+)
 
 type Channel struct {
 	ID           uint   `gorm:"primaryKey" json:"id"`
@@ -17,16 +20,16 @@ type Channel struct {
 	Remark       string `gorm:"size:255" json:"remark"`
 
 	// Native protocol layer configuration
-	SupportedAPITypes  string `gorm:"type:text" json:"supported_api_types"`
-	Endpoints          string `gorm:"type:text" json:"endpoints"`
-	PassthroughEnabled bool   `gorm:"default:false" json:"passthrough_enabled"`
-	UseLegacyAdaptor   bool   `gorm:"default:false" json:"use_legacy_adaptor"`
-	SystemPrompt       string `gorm:"type:text" json:"system_prompt"`
-	RoleMapping        string `gorm:"type:text" json:"role_mapping"`
-	SystemPromptInInput bool  `gorm:"default:false" json:"system_prompt_in_input"`
-	ProxyURL           string `gorm:"size:256" json:"proxy_url"`
-	ParamOverride      string `gorm:"type:text" json:"param_override"`
-	HeaderOverride     string `gorm:"type:text" json:"header_override"`
+	SupportedAPITypes   string `gorm:"type:text" json:"supported_api_types"`
+	Endpoints           string `gorm:"type:text" json:"endpoints"`
+	PassthroughEnabled  bool   `gorm:"default:false" json:"passthrough_enabled"`
+	UseLegacyAdaptor    bool   `gorm:"default:false" json:"use_legacy_adaptor"`
+	SystemPrompt        string `gorm:"type:text" json:"system_prompt"`
+	RoleMapping         string `gorm:"type:text" json:"role_mapping"`
+	SystemPromptInInput bool   `gorm:"default:false" json:"system_prompt_in_input"`
+	ProxyURL            string `gorm:"size:256" json:"proxy_url"`
+	ParamOverride       string `gorm:"type:text" json:"param_override"`
+	HeaderOverride      string `gorm:"type:text" json:"header_override"`
 
 	// Legacy: new-api specific fields (remove together when removing new-api)
 	Setting           string `gorm:"type:text" json:"setting"`
@@ -47,6 +50,9 @@ type Channel struct {
 func (ch *Channel) GetBaseURL() string {
 	if ch.BaseURL != "" {
 		return ch.BaseURL
+	}
+	if ch.Type == consts.ChannelTypeGitHubCopilot {
+		return "https://api.githubcopilot.com"
 	}
 	if ch.Type > 0 && ch.Type < len(newAPIConstant.ChannelBaseURLs) {
 		return newAPIConstant.ChannelBaseURLs[ch.Type]

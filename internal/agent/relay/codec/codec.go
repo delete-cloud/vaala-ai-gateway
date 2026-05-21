@@ -111,6 +111,8 @@ func ChannelTypeToProtocol(channelType int) Protocol {
 		return ProtocolClaude
 	case consts.ChannelTypeGemini:
 		return ProtocolGemini
+	case consts.ChannelTypeGitHubCopilot:
+		return ProtocolOpenAIChat
 	default:
 		return ProtocolOpenAIChat
 	}

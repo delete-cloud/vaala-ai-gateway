@@ -15,6 +15,7 @@ export const CHANNEL_TYPES = {
   ANTHROPIC: 14,
   AWS: 33,
   VERTEX_AI: 41,
+  GITHUB_COPILOT: 1001,
 } as const;
 
 // API type identifiers (match backend consts)

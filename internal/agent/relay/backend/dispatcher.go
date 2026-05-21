@@ -8,6 +8,7 @@ import (
 	"github.com/VaalaCat/ai-gateway/internal/agent/relay/backend/passthrough"
 	"github.com/VaalaCat/ai-gateway/internal/agent/relay/state"
 	"github.com/VaalaCat/ai-gateway/internal/agent/relay/upstream"
+	"github.com/VaalaCat/ai-gateway/internal/consts"
 	"github.com/VaalaCat/ai-gateway/internal/pkg/app"
 )
 
@@ -40,9 +41,29 @@ func (d *Dispatcher) Dispatch(rctx *state.RelayContext, a state.Attempt) state.A
 		return state.AttemptResult{Err: fmt.Errorf("no backend for mode %q", string(a.Mode))}
 	}
 	raw := backend.Relay(rctx, a)
+	if a.Channel != nil && a.Channel.Type == consts.ChannelTypeGitHubCopilot {
+		return countCopilotRequest(raw)
+	}
 	final := upstream.FinalizeTokenCounts(rctx.Input.Body, raw.PromptTokens, raw.CompletionTokens, raw.ResponseText, a.RealModel)
 	raw.PromptTokens = final.PromptTokens
 	raw.CompletionTokens = final.CompletionTokens
 	raw.TokenSource = string(final.Source)
+	return raw
+}
+
+func countCopilotRequest(raw state.AttemptResult) state.AttemptResult {
+	if raw.Err != nil {
+		raw.PromptTokens = 0
+		raw.CompletionTokens = 0
+		raw.CacheReadTokens = 0
+		raw.CacheWriteTokens = 0
+		raw.TokenSource = ""
+		return raw
+	}
+	raw.PromptTokens = 1
+	raw.CompletionTokens = 0
+	raw.CacheReadTokens = 0
+	raw.CacheWriteTokens = 0
+	raw.TokenSource = "copilot_request"
 	return raw
 }

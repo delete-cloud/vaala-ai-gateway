@@ -9,14 +9,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VaalaCat/ai-gateway/internal/agent/relay/state"
 	"github.com/VaalaCat/ai-gateway/internal/agent/relay/codec"
+	"github.com/VaalaCat/ai-gateway/internal/agent/relay/state"
 	"github.com/VaalaCat/ai-gateway/internal/agent/relay/trace"
 	"github.com/VaalaCat/ai-gateway/internal/agent/relay/transform"
 	"github.com/VaalaCat/ai-gateway/internal/agent/relay/upstream"
 	"github.com/VaalaCat/ai-gateway/internal/consts"
 	"github.com/VaalaCat/ai-gateway/internal/models"
 	"github.com/VaalaCat/ai-gateway/internal/pkg/app"
+	"github.com/VaalaCat/ai-gateway/internal/pkg/copilot"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -60,6 +61,9 @@ func (b *Backend) Relay(rctx *state.RelayContext, a state.Attempt) state.Attempt
 	}
 
 	newBody = applyPassthroughOverrides(upstreamReq, newBody, ch, logger)
+	if ch.Type == consts.ChannelTypeGitHubCopilot {
+		copilot.ApplyHeaders(upstreamReq, newBody, ch.Key)
+	}
 
 	rec.WithOutbound(upstreamReq, newBody, ch)
 

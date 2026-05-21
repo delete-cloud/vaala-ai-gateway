@@ -27,14 +27,15 @@ type Config struct {
 }
 
 type MasterConfig struct {
-	Listen             string   `mapstructure:"listen"`
-	DBPath             string   `mapstructure:"db_path"`
-	JWTSecret          string   `mapstructure:"jwt_secret"`
-	EnrollmentTokenTTL int      `mapstructure:"enrollment_token_ttl"`
-	AdminUser          string   `mapstructure:"admin_user"`
-	AdminPassword      string   `mapstructure:"admin_password"`
-	ProxyURL           string   `mapstructure:"proxy_url"`
-	PublicBaseURLs     []string `mapstructure:"public_base_urls"`
+	Listen               string   `mapstructure:"listen"`
+	DBPath               string   `mapstructure:"db_path"`
+	JWTSecret            string   `mapstructure:"jwt_secret"`
+	EnrollmentTokenTTL   int      `mapstructure:"enrollment_token_ttl"`
+	AdminUser            string   `mapstructure:"admin_user"`
+	AdminPassword        string   `mapstructure:"admin_password"`
+	ProxyURL             string   `mapstructure:"proxy_url"`
+	PublicBaseURLs       []string `mapstructure:"public_base_urls"`
+	CopilotOAuthClientID string   `mapstructure:"copilot_oauth_client_id"`
 }
 
 type AgentAddress struct {
@@ -43,20 +44,20 @@ type AgentAddress struct {
 }
 
 type AgentConfig struct {
-	Listen              string            `mapstructure:"listen"`
-	MasterURL           string            `mapstructure:"master_url"`
-	EnrollmentToken     string            `mapstructure:"enrollment_token"`
-	CredentialsFile     string            `mapstructure:"credentials_file"`
-	FullSyncInterval    int               `mapstructure:"full_sync_interval"`
-	ReportBufferSize    int               `mapstructure:"report_buffer_size"`
-	ReportFlushInterval int               `mapstructure:"report_flush_interval"`
-	HeartbeatInterval   int               `mapstructure:"heartbeat_interval"`
-	RetryMax            int               `mapstructure:"retry_max"`
-	HTTPAddresses       []AgentAddress    `mapstructure:"http_addresses"`
-	Tags                string            `mapstructure:"tags"`
-	ProxyURL            string            `mapstructure:"proxy_url"`
-	PreferredAddrTag    string            `mapstructure:"preferred_address_tag"`
-	Cache               AgentCacheConfig  `mapstructure:"cache"`
+	Listen              string           `mapstructure:"listen"`
+	MasterURL           string           `mapstructure:"master_url"`
+	EnrollmentToken     string           `mapstructure:"enrollment_token"`
+	CredentialsFile     string           `mapstructure:"credentials_file"`
+	FullSyncInterval    int              `mapstructure:"full_sync_interval"`
+	ReportBufferSize    int              `mapstructure:"report_buffer_size"`
+	ReportFlushInterval int              `mapstructure:"report_flush_interval"`
+	HeartbeatInterval   int              `mapstructure:"heartbeat_interval"`
+	RetryMax            int              `mapstructure:"retry_max"`
+	HTTPAddresses       []AgentAddress   `mapstructure:"http_addresses"`
+	Tags                string           `mapstructure:"tags"`
+	ProxyURL            string           `mapstructure:"proxy_url"`
+	PreferredAddrTag    string           `mapstructure:"preferred_address_tag"`
+	Cache               AgentCacheConfig `mapstructure:"cache"`
 }
 
 // AgentCacheConfig 控制 agent 端 LRU 缓存的容量与负缓存 TTL。
@@ -236,6 +237,7 @@ func Load(path string) (*Config, error) {
 	viper.SetDefault("relay.max_idle_conns_per_host", 10)
 	viper.SetDefault("master.admin_user", "admin")
 	viper.SetDefault("master.proxy_url", "")
+	viper.SetDefault("master.copilot_oauth_client_id", "")
 	viper.SetDefault("eventbus.type", "memory")
 
 	if err := viper.ReadInConfig(); err != nil {

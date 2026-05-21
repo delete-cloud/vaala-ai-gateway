@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,13 +15,16 @@ import (
 	"github.com/VaalaCat/ai-gateway/internal/consts"
 	"github.com/VaalaCat/ai-gateway/internal/dao"
 	"github.com/VaalaCat/ai-gateway/internal/pkg/app"
+	"github.com/VaalaCat/ai-gateway/internal/pkg/copilot"
 	"github.com/VaalaCat/ai-gateway/internal/pkg/httputil"
 )
 
 func (h *Handler) FetchModels(c *app.Context, req FetchModelsRequest) (FetchModelsResponse, error) {
 	baseURL := req.BaseURL
 	if baseURL == "" {
-		if req.Type > 0 && req.Type < len(newAPIConstant.ChannelBaseURLs) {
+		if req.Type == consts.ChannelTypeGitHubCopilot {
+			baseURL = copilot.DefaultBaseURL
+		} else if req.Type > 0 && req.Type < len(newAPIConstant.ChannelBaseURLs) {
 			baseURL = newAPIConstant.ChannelBaseURLs[req.Type]
 		}
 		if baseURL == "" {
@@ -70,6 +74,13 @@ func (h *Handler) FetchModels(c *app.Context, req FetchModelsRequest) (FetchMode
 func doFetchModels(channelType int, baseURL, key, endpoints, proxyURL string) (FetchModelsResponse, error) {
 	// Provider-specific model fetching
 	switch channelType {
+	case consts.ChannelTypeGitHubCopilot:
+		client := httputil.NewClient(proxyURL, 15*time.Second)
+		models, err := copilot.FetchModels(context.Background(), client, baseURL, key)
+		if err != nil {
+			return FetchModelsResponse{Models: []string{}, Error: fmt.Sprintf("fetch github copilot models failed: %v", err)}, nil
+		}
+		return FetchModelsResponse{Models: models}, nil
 	case newAPIConstant.ChannelTypeGemini:
 		models, err := gemini.FetchGeminiModels(baseURL, key, proxyURL)
 		if err != nil {
