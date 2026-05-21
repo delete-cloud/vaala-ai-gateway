@@ -10,7 +10,7 @@ import { ModelSelectorPanel } from "@/components/business/model-selector-panel";
 import { FetchModelsButton } from "@/components/business/fetch-models-button";
 import { FieldTip } from "@/components/business/field-tip";
 import { ChannelForm } from "../types";
-import { parseSetting } from "../utils";
+import { parseOtherSettings, parseSetting, stringifyOtherSettings } from "../utils";
 
 export interface ModelsSectionProps {
   form: ChannelForm;
@@ -22,6 +22,7 @@ export function ModelsSection({ form, setForm, agentId }: ModelsSectionProps) {
   const t = useTranslations("channels");
 
   const setting = parseSetting(form.setting);
+  const otherSettings = parseOtherSettings(form.other_settings);
 
   return (
     <div className="space-y-4">
@@ -36,10 +37,20 @@ export function ModelsSection({ form, setForm, agentId }: ModelsSectionProps) {
             endpoints={form.endpoints}
             proxyUrl={form.proxy_url || setting.proxy}
             agentId={agentId}
+            otherSettings={form.other_settings}
             existingModels={
               form.models ? form.models.split(",").map((s) => s.trim()).filter(Boolean) : []
             }
-            onModelsSelected={(models) => setForm({ ...form, models: models.join(",") })}
+            onModelsSelected={(models, prices) =>
+              setForm({
+                ...form,
+                models: models.join(","),
+                other_settings: stringifyOtherSettings({
+                  ...otherSettings,
+                  ...(prices ? { copilot_model_prices: prices } : {}),
+                }),
+              })
+            }
           />
         </div>
         <ModelSelectorPanel

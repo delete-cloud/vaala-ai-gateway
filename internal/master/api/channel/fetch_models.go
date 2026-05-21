@@ -48,11 +48,12 @@ func (h *Handler) FetchModels(c *app.Context, req FetchModelsRequest) (FetchMode
 			return FetchModelsResponse{Models: []string{}, Error: "agent not connected"}, nil
 		}
 		params := map[string]any{
-			"base_url":  baseURL,
-			"key":       req.Key,
-			"type":      req.Type,
-			"endpoints": req.Endpoints,
-			"proxy_url": resolved,
+			"base_url":       baseURL,
+			"key":            req.Key,
+			"type":           req.Type,
+			"endpoints":      req.Endpoints,
+			"proxy_url":      resolved,
+			"other_settings": req.OtherSettings,
 		}
 		result, err := h.Hub.Call(req.AgentID, consts.RPCChannelFetchModels, params, 20*time.Second)
 		if err != nil {
@@ -66,21 +67,29 @@ func (h *Handler) FetchModels(c *app.Context, req FetchModelsRequest) (FetchMode
 	}
 
 	// Local execution
-	return doFetchModels(req.Type, baseURL, req.Key, req.Endpoints, resolved)
+	return doFetchModels(req.Type, baseURL, req.Key, req.Endpoints, resolved, req.OtherSettings)
 }
 
 // doFetchModels performs the actual HTTP call to fetch models from upstream.
 // Shared between master local execution and agent RPC handler.
-func doFetchModels(channelType int, baseURL, key, endpoints, proxyURL string) (FetchModelsResponse, error) {
+func doFetchModels(channelType int, baseURL, key, endpoints, proxyURL, otherSettings string) (FetchModelsResponse, error) {
 	// Provider-specific model fetching
 	switch channelType {
 	case consts.ChannelTypeGitHubCopilot:
 		client := httputil.NewClient(proxyURL, 15*time.Second)
-		models, err := copilot.FetchModels(context.Background(), client, baseURL, key)
+		catalog, err := copilot.FetchModelCatalog(context.Background(), client, baseURL, key, copilot.EnterpriseDomainFromOtherSettings(otherSettings))
 		if err != nil {
 			return FetchModelsResponse{Models: []string{}, Error: fmt.Sprintf("fetch github copilot models failed: %v", err)}, nil
 		}
-		return FetchModelsResponse{Models: models}, nil
+		models := make([]string, 0, len(catalog))
+		prices := make([]CopilotModelPrice, 0, len(catalog))
+		for _, item := range catalog {
+			models = append(models, item.ID)
+			if item.PremiumCostKnown {
+				prices = append(prices, CopilotModelPrice{ModelName: item.ID, PremiumCost: item.PremiumCost})
+			}
+		}
+		return FetchModelsResponse{Models: models, ModelPrices: prices}, nil
 	case newAPIConstant.ChannelTypeGemini:
 		models, err := gemini.FetchGeminiModels(baseURL, key, proxyURL)
 		if err != nil {

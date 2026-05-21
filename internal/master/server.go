@@ -290,6 +290,7 @@ func (s *Server) setupRoutes() {
 	auth.POST("/channels/copilot/device/start", api.Adapt(adapter, api.BindJSON, channelH.CopilotDeviceStart))
 	auth.POST("/channels/copilot/device/poll", api.Adapt(adapter, api.BindJSON, channelH.CopilotDevicePoll))
 	auth.POST("/channels/fetch-models", api.Adapt(adapter, api.BindJSON, channelH.FetchModels))
+	auth.GET("/channels/:id/copilot/quota", api.Adapt(adapter, api.BindURI, channelH.CopilotQuota))
 	auth.GET("/channels/:id", api.Adapt(adapter, api.BindURI, channelH.Get))
 	auth.PUT("/channels/:id", api.Adapt(adapter, api.BindURIAndBodyMap, channelH.Update))
 	auth.DELETE("/channels/:id", api.Adapt(adapter, api.BindURI, channelH.Delete))

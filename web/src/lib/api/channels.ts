@@ -63,8 +63,8 @@ export function useUpdateChannel() {
 
 export function useFetchUpstreamModels() {
   return useMutation({
-    mutationFn: (body: { base_url: string; key: string; type: number; endpoints?: string; proxy_url?: string; agent_id?: string }) =>
-      api.post<{ models: string[]; error?: string }>("/admin/channels/fetch-models", body),
+    mutationFn: (body: { base_url: string; key: string; type: number; endpoints?: string; proxy_url?: string; agent_id?: string; other_settings?: string }) =>
+      api.post<{ models: string[]; model_prices?: { model_name: string; premium_cost: number }[]; error?: string }>("/admin/channels/fetch-models", body),
   });
 }
 

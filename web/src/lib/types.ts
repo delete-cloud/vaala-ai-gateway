@@ -80,6 +80,8 @@ export interface ChannelSettings {
 export type BuiltinToolFallbackPolicy = "drop" | "error" | "passthrough";
 
 export interface ChannelOtherSettings {
+  copilot_enterprise_domain?: string;
+  copilot_model_prices?: Record<string, number>;
   azure_responses_version?: string;
   vertex_key_type?: string;
   openrouter_enterprise?: boolean | null;

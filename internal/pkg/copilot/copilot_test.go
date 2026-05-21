@@ -57,27 +57,6 @@ func TestBaseURL(t *testing.T) {
 	}
 }
 
-func TestResolveOAuthClientID(t *testing.T) {
-	tests := []struct {
-		name string
-		in   string
-		want string
-	}{
-		{name: "empty", in: "", want: ""},
-		{name: "raw client id", in: "Ov23custom", want: "Ov23custom"},
-		{name: "opencode alias", in: "opencode", want: openCodeOAuthClientID},
-		{name: "copilot api alias", in: "copilot-api", want: openCodeOAuthClientID},
-		{name: "trim and case", in: "  OpenCode  ", want: openCodeOAuthClientID},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := ResolveOAuthClientID(tc.in); got != tc.want {
-				t.Fatalf("got %q want %q", got, tc.want)
-			}
-		})
-	}
-}
-
 func TestCopilotTokenURL(t *testing.T) {
 	if got := CopilotTokenURL(""); got != "https://api.github.com/copilot_internal/v2/token" {
 		t.Fatalf("github.com token URL = %q", got)
@@ -92,7 +71,7 @@ func TestExchangeGitHubToken(t *testing.T) {
 		if req.URL.String() != "https://api.github.com/copilot_internal/v2/token" {
 			t.Fatalf("url = %q", req.URL.String())
 		}
-		if got := req.Header.Get("Authorization"); got != "Bearer github-token" {
+		if got := req.Header.Get("Authorization"); got != "token github-token" {
 			t.Fatalf("Authorization = %q", got)
 		}
 		return &http.Response{
@@ -116,9 +95,12 @@ func TestPollDeviceFlowExchangesGitHubToken(t *testing.T) {
 		var body string
 		switch req.URL.String() {
 		case "https://github.com/login/oauth/access_token":
+			if got := req.Header.Get("Content-Type"); got != "application/x-www-form-urlencoded" {
+				t.Fatalf("poll Content-Type = %q", got)
+			}
 			body = `{"access_token":"github-token"}`
 		case "https://api.github.com/copilot_internal/v2/token":
-			if got := req.Header.Get("Authorization"); got != "Bearer github-token" {
+			if got := req.Header.Get("Authorization"); got != "token github-token" {
 				t.Fatalf("exchange Authorization = %q", got)
 			}
 			body = `{"token":"copilot-token"}`
@@ -140,8 +122,150 @@ func TestPollDeviceFlowExchangesGitHubToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resp.Status != "success" || resp.AccessToken != "copilot-token" {
+	if resp.Status != "success" || resp.AccessToken != "github-token" {
 		t.Fatalf("poll response = %#v", resp)
+	}
+}
+
+func TestStartDeviceFlowUsesDefaultClientID(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if got := req.Header.Get("Content-Type"); got != "application/x-www-form-urlencoded" {
+			t.Fatalf("Content-Type = %q", got)
+		}
+		data, _ := io.ReadAll(req.Body)
+		body := string(data)
+		if !bytes.Contains(data, []byte("client_id="+DefaultOAuthClientID)) {
+			t.Fatalf("body %q does not contain default client id", body)
+		}
+		if !bytes.Contains(data, []byte("scope=read%3Auser+user%3Aemail")) {
+			t.Fatalf("body %q does not contain expected scope", body)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(bytes.NewReader([]byte(`{"verification_uri":"https://github.com/login/device","user_code":"ABCD","device_code":"dev","interval":5}`))),
+		}, nil
+	})}
+	resp, err := StartDeviceFlow(context.Background(), DeviceStartRequest{HTTPClient: client})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.UserCode != "ABCD" || resp.DeviceCode != "dev" {
+		t.Fatalf("response = %#v", resp)
+	}
+}
+
+func TestFetchQuota(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.String() != "https://api.github.com/copilot_internal/user" {
+			t.Fatalf("url = %q", req.URL.String())
+		}
+		if got := req.Header.Get("Authorization"); got != "token github-token" {
+			t.Fatalf("Authorization = %q", got)
+		}
+		body := `{
+			"copilot_plan":"individual",
+			"quota_reset_date":"2026-06-01T00:00:00Z",
+			"quota_snapshots":{
+				"premium_interactions":{"entitlement":300,"remaining":250,"percent_remaining":83.33,"quota_id":"premium"},
+				"chat":{"unlimited":true},
+				"completions":{"entitlement":1000,"quota_remaining":750}
+			}
+		}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(bytes.NewReader([]byte(body))),
+		}, nil
+	})}
+	quota, err := FetchQuota(context.Background(), client, "", "github-token")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if quota.PlanType != "individual" || quota.QuotaResetAt != "2026-06-01T00:00:00Z" {
+		t.Fatalf("quota metadata = %#v", quota)
+	}
+	if quota.Premium.Used != 50 || quota.Premium.Remaining != 250 {
+		t.Fatalf("premium snapshot = %#v", quota.Premium)
+	}
+	if !quota.Chat.Unlimited || quota.Chat.PercentRemaining != 100 {
+		t.Fatalf("chat snapshot = %#v", quota.Chat)
+	}
+	if quota.Completions.PercentRemaining != 75 {
+		t.Fatalf("completions snapshot = %#v", quota.Completions)
+	}
+}
+
+func TestFetchModelCatalogExtractsPremiumCosts(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		var body string
+		switch req.URL.String() {
+		case "https://api.github.com/copilot_internal/v2/token":
+			body = `{"token":"copilot-token","endpoints":{"api":"https://api.individual.githubcopilot.com"}}`
+		case "https://api.individual.githubcopilot.com/models":
+			if got := req.Header.Get("Authorization"); got != "Bearer copilot-token" {
+				t.Fatalf("models Authorization = %q", got)
+			}
+			body = `{"data":[
+				{"id":"gpt-5","model_picker_enabled":true,"capabilities":{"billing":{"premium_interactions":10}}},
+				{"id":"gpt-4o","model_picker_enabled":true,"capabilities":{"quota_cost":1}},
+				{"id":"disabled","model_picker_enabled":true,"policy":{"state":"disabled"}}
+			]}`
+		default:
+			t.Fatalf("unexpected URL %q", req.URL.String())
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(bytes.NewReader([]byte(body))),
+		}, nil
+	})}
+
+	catalog, err := FetchModelCatalog(context.Background(), client, "", "github-token-catalog", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(catalog) != 2 {
+		t.Fatalf("catalog length = %d, want 2: %#v", len(catalog), catalog)
+	}
+	if catalog[0].ID != "gpt-4o" || catalog[0].PremiumCost != 1 {
+		t.Fatalf("first model = %#v", catalog[0])
+	}
+	if catalog[1].ID != "gpt-5" || catalog[1].PremiumCost != 10 {
+		t.Fatalf("second model = %#v", catalog[1])
+	}
+}
+
+func TestExtractPremiumCostSupportsNestedAndStringValues(t *testing.T) {
+	cost := ExtractPremiumCost(map[string]any{
+		"nested": map[string]any{
+			"premium_request_cost": "7.5",
+		},
+	})
+	if cost != 7.5 {
+		t.Fatalf("cost = %v, want 7.5", cost)
+	}
+}
+
+func TestPremiumCostForModelIncludesZeroCostModels(t *testing.T) {
+	cost, ok := PremiumCostForModel("gpt-5-mini")
+	if !ok || cost != 0 {
+		t.Fatalf("gpt-5-mini cost = %v/%v, want 0/true", cost, ok)
+	}
+	cost, ok = PremiumCostForModel("gpt-5.5")
+	if !ok || cost != 7.5 {
+		t.Fatalf("gpt-5.5 cost = %v/%v, want 7.5/true", cost, ok)
+	}
+	_, ok = PremiumCostForModel("unknown-model")
+	if ok {
+		t.Fatal("unknown model should not have a known premium cost")
+	}
+}
+
+func TestPremiumCostFromOtherSettingsAllowsKnownZeroCost(t *testing.T) {
+	cost, ok := PremiumCostFromOtherSettings(`{"copilot_model_prices":{"gpt-5-mini":0}}`, "gpt-5-mini")
+	if !ok || cost != 0 {
+		t.Fatalf("premium cost = %d/%v, want 0/true", cost, ok)
 	}
 }
 
@@ -173,6 +297,12 @@ func TestApplyHeaders(t *testing.T) {
 	if got := req.Header.Get(HeaderOpenAIIntent); got != openAIIntentConversationEdits {
 		t.Fatalf("Openai-Intent = %q", got)
 	}
+	if got := req.Header.Get("Editor-Version"); got != "vscode/1.100.0" {
+		t.Fatalf("Editor-Version = %q", got)
+	}
+	if got := req.Header.Get("Editor-Plugin-Version"); got != "copilot/1.300.0" {
+		t.Fatalf("Editor-Plugin-Version = %q", got)
+	}
 	if got := req.Header.Get(HeaderVisionRequest); got != "true" {
 		t.Fatalf("Copilot-Vision-Request = %q", got)
 	}
@@ -181,8 +311,24 @@ func TestApplyHeaders(t *testing.T) {
 	}
 }
 
+func TestApplyBaseURLAllowsOnlyTrustedCopilotHosts(t *testing.T) {
+	req, err := http.NewRequest(http.MethodPost, "https://api.githubcopilot.com/chat/completions", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ApplyBaseURL(req, "https://api.individual.githubcopilot.com")
+	if got := req.URL.String(); got != "https://api.individual.githubcopilot.com/chat/completions" {
+		t.Fatalf("trusted rewrite = %q", got)
+	}
+
+	ApplyBaseURL(req, "https://evil.example.com")
+	if got := req.URL.String(); got != "https://api.individual.githubcopilot.com/chat/completions" {
+		t.Fatalf("untrusted rewrite changed URL to %q", got)
+	}
+}
+
 func TestProtocolOverride(t *testing.T) {
-	if got := ProtocolOverride("claude-sonnet-4"); got["openai_chat"] != "claude" {
+	if got := ProtocolOverride("claude-sonnet-4"); got["openai_chat"] != "openai_responses" || got["claude"] != "openai_responses" {
 		t.Fatalf("claude override = %v", got)
 	}
 	if got := ProtocolOverride("gpt-5"); got["openai_chat"] != "openai_responses" {

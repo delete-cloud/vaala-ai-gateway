@@ -25,8 +25,9 @@ interface FetchModelsButtonProps {
   endpoints?: string;
   proxyUrl?: string;
   agentId?: string;
+  otherSettings?: string;
   existingModels: string[];
-  onModelsSelected: (models: string[]) => void;
+  onModelsSelected: (models: string[], modelPrices?: Record<string, number>) => void;
 }
 
 export function FetchModelsButton({
@@ -36,6 +37,7 @@ export function FetchModelsButton({
   endpoints,
   proxyUrl,
   agentId,
+  otherSettings,
   existingModels,
   onModelsSelected,
 }: FetchModelsButtonProps) {
@@ -48,6 +50,7 @@ export function FetchModelsButton({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [fetchedModelPrices, setFetchedModelPrices] = useState<Record<string, number> | undefined>();
 
   const canFetch = apiKey.trim() !== "";
 
@@ -83,6 +86,7 @@ export function FetchModelsButton({
         endpoints,
         proxy_url: proxyUrl,
         agent_id: agentId,
+        other_settings: otherSettings,
       });
       if (result.error) {
         toast.error(result.error);
@@ -94,6 +98,11 @@ export function FetchModelsButton({
       setSelected(new Set(models.filter((m: string) => !existing.has(m))));
       setSearch("");
       setExpanded(new Set());
+      setFetchedModelPrices(
+        result.model_prices && result.model_prices.length > 0
+          ? Object.fromEntries(result.model_prices.map((item) => [item.model_name, item.premium_cost]))
+          : undefined
+      );
       setDialogOpen(true);
     } catch {
       toast.error(tc("error"));
@@ -143,7 +152,7 @@ export function FetchModelsButton({
 
   const handleConfirm = () => {
     const newModels = Array.from(selected).filter((m) => !existingSet.has(m));
-    onModelsSelected([...existingModels, ...newModels]);
+    onModelsSelected([...existingModels, ...newModels], fetchedModelPrices);
     setDialogOpen(false);
   };
 

@@ -62,7 +62,13 @@ func (b *Backend) Relay(rctx *state.RelayContext, a state.Attempt) state.Attempt
 
 	newBody = applyPassthroughOverrides(upstreamReq, newBody, ch, logger)
 	if ch.Type == consts.ChannelTypeGitHubCopilot {
-		copilot.ApplyHeaders(upstreamReq, newBody, ch.Key)
+		client := upstream.BuildHTTPClient(b.transportPool(), ch)
+		apiToken, err := copilot.GetAPIToken(c.Request.Context(), client, copilot.EnterpriseDomainFromOtherSettings(ch.OtherSettings), ch.Key)
+		if err != nil {
+			return state.AttemptResult{Err: fmt.Errorf("github copilot token exchange: %w", err)}
+		}
+		copilot.ApplyBaseURL(upstreamReq, apiToken.BaseURL)
+		copilot.ApplyHeaders(upstreamReq, newBody, apiToken.Token)
 	}
 
 	rec.WithOutbound(upstreamReq, newBody, ch)

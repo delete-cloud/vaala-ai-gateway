@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/VaalaCat/ai-gateway/internal/consts"
 	"github.com/VaalaCat/ai-gateway/internal/dao"
 	"github.com/VaalaCat/ai-gateway/internal/models"
 	"github.com/VaalaCat/ai-gateway/internal/pkg/app"
@@ -61,9 +62,13 @@ func (s *Settler) settleOne(ctx context.Context, agentID string, entry protocol.
 		return nil // already processed
 	}
 
+	channelName, channelType := parseChannelSnapshot(entry.Other)
+
+	isCopilotRequest := isCopilotCountedRequest(entry, channelType)
+
 	// Look up model pricing
 	var mc models.ModelConfig
-	if strings.TrimSpace(entry.ModelName) != "" {
+	if strings.TrimSpace(entry.ModelName) != "" && !isCopilotRequest {
 		if found, err := q.ModelConfig().GetByModelName(entry.ModelName); err == nil {
 			mc = *found
 		} else {
@@ -72,7 +77,9 @@ func (s *Settler) settleOne(ctx context.Context, agentID string, entry protocol.
 		}
 	}
 
-	// Calculate costs (prices are USD / 1M tokens)
+	// Calculate costs (prices are USD / 1M tokens). GitHub Copilot subscription
+	// usage is request-count based, so Copilot calls use per-model premium costs
+	// instead of token pricing.
 	inputCost := int64(float64(entry.PromptTokens) * mc.InputPrice / 1_000_000 * float64(quotaPerDollar))
 	outputCost := int64(float64(entry.CompletionTokens) * mc.OutputPrice / 1_000_000 * float64(quotaPerDollar))
 
@@ -86,36 +93,43 @@ func (s *Settler) settleOne(ctx context.Context, agentID string, entry protocol.
 	}
 
 	totalCost := inputCost + outputCost + cacheReadCost + cacheWriteCost
-	channelName, channelType := parseChannelSnapshot(entry.Other)
+	if isCopilotRequest {
+		cost := copilotRequestCost(entry)
+		inputCost = cost
+		outputCost = 0
+		cacheReadCost = 0
+		cacheWriteCost = 0
+		totalCost = cost
+	}
 
 	log := models.UsageLog{
-		UserID:           entry.UserID,
-		TokenID:          entry.TokenID,
-		ChannelID:        entry.ChannelID,
-		AgentID:          agentID,
-		ModelName:        entry.ModelName,
-		PromptTokens:     entry.PromptTokens,
-		CompletionTokens: entry.CompletionTokens,
-		InputCost:        inputCost,
-		OutputCost:       outputCost,
-		TotalCost:        totalCost,
-		IsStream:         entry.IsStream,
-		Duration:         entry.Duration,
-		RequestID:        entry.RequestID,
-		ClientIP:         entry.ClientIP,
-		TokenName:        entry.TokenName,
-		ChannelName:      channelName,
-		ChannelType:      channelType,
-		UpstreamModel:    entry.UpstreamModel,
-		FirstResponseMs:  entry.FirstResponseMs,
-		CacheReadTokens:  entry.CacheReadTokens,
-		CacheWriteTokens: entry.CacheWriteTokens,
-		InboundProtocol:  entry.InboundProtocol,
-		OutboundProtocol: entry.OutboundProtocol,
-		UseLegacy:        entry.UseLegacy,
-		Status:           entry.Status,
-		ErrorMessage:     entry.ErrorMessage,
-		Other:            entry.Other,
+		UserID:             entry.UserID,
+		TokenID:            entry.TokenID,
+		ChannelID:          entry.ChannelID,
+		AgentID:            agentID,
+		ModelName:          entry.ModelName,
+		PromptTokens:       entry.PromptTokens,
+		CompletionTokens:   entry.CompletionTokens,
+		InputCost:          inputCost,
+		OutputCost:         outputCost,
+		TotalCost:          totalCost,
+		IsStream:           entry.IsStream,
+		Duration:           entry.Duration,
+		RequestID:          entry.RequestID,
+		ClientIP:           entry.ClientIP,
+		TokenName:          entry.TokenName,
+		ChannelName:        channelName,
+		ChannelType:        channelType,
+		UpstreamModel:      entry.UpstreamModel,
+		FirstResponseMs:    entry.FirstResponseMs,
+		CacheReadTokens:    entry.CacheReadTokens,
+		CacheWriteTokens:   entry.CacheWriteTokens,
+		InboundProtocol:    entry.InboundProtocol,
+		OutboundProtocol:   entry.OutboundProtocol,
+		UseLegacy:          entry.UseLegacy,
+		Status:             entry.Status,
+		ErrorMessage:       entry.ErrorMessage,
+		Other:              entry.Other,
 		TokenSource:        entry.TokenSource,
 		RoutingName:        entry.RoutingName,
 		ErrorStage:         entry.ErrorStage,
@@ -201,6 +215,17 @@ func (s *Settler) settleOne(ctx context.Context, agentID string, entry protocol.
 		}
 	}
 	return nil
+}
+
+func isCopilotCountedRequest(entry protocol.UsageLogEntry, channelType int) bool {
+	return channelType == consts.ChannelTypeGitHubCopilot &&
+		entry.TokenSource == "copilot_request" &&
+		entry.PromptTokens > 0 &&
+		entry.Status != 0
+}
+
+func copilotRequestCost(entry protocol.UsageLogEntry) int64 {
+	return int64(entry.PromptTokens)
 }
 
 type channelSnapshot struct {

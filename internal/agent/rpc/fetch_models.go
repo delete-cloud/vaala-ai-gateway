@@ -18,16 +18,23 @@ import (
 )
 
 type FetchModelsParams struct {
-	BaseURL   string `json:"base_url"`
-	Key       string `json:"key"`
-	Type      int    `json:"type"`
-	Endpoints string `json:"endpoints"`
-	ProxyURL  string `json:"proxy_url"`
+	BaseURL       string `json:"base_url"`
+	Key           string `json:"key"`
+	Type          int    `json:"type"`
+	Endpoints     string `json:"endpoints"`
+	ProxyURL      string `json:"proxy_url"`
+	OtherSettings string `json:"other_settings"`
 }
 
 type FetchModelsResult struct {
-	Models []string `json:"models"`
-	Error  string   `json:"error,omitempty"`
+	Models      []string            `json:"models"`
+	ModelPrices []CopilotModelPrice `json:"model_prices,omitempty"`
+	Error       string              `json:"error,omitempty"`
+}
+
+type CopilotModelPrice struct {
+	ModelName   string  `json:"model_name"`
+	PremiumCost float64 `json:"premium_cost"`
 }
 
 func HandleFetchModels(_ context.Context, params json.RawMessage) (any, error) {
@@ -52,11 +59,19 @@ func HandleFetchModels(_ context.Context, params json.RawMessage) (any, error) {
 	switch p.Type {
 	case consts.ChannelTypeGitHubCopilot:
 		client := httputil.NewClient(p.ProxyURL, 15*time.Second)
-		models, err := copilot.FetchModels(context.Background(), client, baseURL, p.Key)
+		catalog, err := copilot.FetchModelCatalog(context.Background(), client, baseURL, p.Key, copilot.EnterpriseDomainFromOtherSettings(p.OtherSettings))
 		if err != nil {
 			return &FetchModelsResult{Models: []string{}, Error: fmt.Sprintf("fetch github copilot models failed: %v", err)}, nil
 		}
-		return &FetchModelsResult{Models: models}, nil
+		models := make([]string, 0, len(catalog))
+		prices := make([]CopilotModelPrice, 0, len(catalog))
+		for _, item := range catalog {
+			models = append(models, item.ID)
+			if item.PremiumCostKnown {
+				prices = append(prices, CopilotModelPrice{ModelName: item.ID, PremiumCost: item.PremiumCost})
+			}
+		}
+		return &FetchModelsResult{Models: models, ModelPrices: prices}, nil
 	case newAPIConstant.ChannelTypeGemini:
 		models, err := gemini.FetchGeminiModels(baseURL, p.Key, p.ProxyURL)
 		if err != nil {

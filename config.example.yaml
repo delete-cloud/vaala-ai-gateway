@@ -14,12 +14,8 @@ master:
   # ${origin}/api/oauth/<provider>/callback
   public_base_urls:
     - "http://localhost:8140"
-  # GitHub OAuth App client id for Copilot device-code login in the channel form.
-  # Values:
-  #   - "opencode" or "copilot-api": use the OAuth app recommended by copilot-api
-  #     for Copilot token exchange compatibility.
-  #   - a raw GitHub OAuth App Client ID: use your own app. This may not be able
-  #     to exchange the GitHub OAuth token for a Copilot API token.
+  # Optional override for the GitHub Copilot device-code OAuth client id.
+  # Leave empty to use GitHub's Copilot CLI OAuth client id.
   copilot_oauth_client_id: ""
 
 agent:

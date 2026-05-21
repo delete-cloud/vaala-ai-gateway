@@ -38,6 +38,16 @@ func (h *Handler) Test(c *app.Context, req TestRequest) (TestResponse, error) {
 	if model == "" {
 		return TestResponse{}, api.BadRequestError("no model available for testing", nil)
 	}
+	if channel.Type == consts.ChannelTypeGitHubCopilot {
+		refreshed, err := ensureCopilotModelPrice(c.Request.Context(), daoCtx, c.GetBus(), channel, model)
+		if err != nil {
+			return TestResponse{}, api.BadRequestError(err.Error(), err)
+		}
+		channel = refreshed
+		if h.AgentStore != nil {
+			h.AgentStore.SetChannel(&channel)
+		}
+	}
 
 	// Remote agent test via WS RPC
 	if req.AgentID != "" && req.AgentID != "embedded" {

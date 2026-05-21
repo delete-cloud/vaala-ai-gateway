@@ -10,6 +10,7 @@ import (
 	"github.com/VaalaCat/ai-gateway/internal/agent/relay/upstream"
 	"github.com/VaalaCat/ai-gateway/internal/consts"
 	"github.com/VaalaCat/ai-gateway/internal/pkg/app"
+	"github.com/VaalaCat/ai-gateway/internal/pkg/copilot"
 )
 
 // Dispatcher 按 Attempt.Mode 选择后端执行，并在结果上叠加统一的 token 计数调和。
@@ -40,9 +41,17 @@ func (d *Dispatcher) Dispatch(rctx *state.RelayContext, a state.Attempt) state.A
 	if !ok {
 		return state.AttemptResult{Err: fmt.Errorf("no backend for mode %q", string(a.Mode))}
 	}
+	copilotCost := 0
+	if a.Channel != nil && a.Channel.Type == consts.ChannelTypeGitHubCopilot {
+		cost, ok := copilot.PremiumCostFromOtherSettings(a.Channel.OtherSettings, a.RealModel)
+		if !ok {
+			return state.AttemptResult{Err: fmt.Errorf("github copilot premium cost is not configured for model %q", a.RealModel)}
+		}
+		copilotCost = cost
+	}
 	raw := backend.Relay(rctx, a)
 	if a.Channel != nil && a.Channel.Type == consts.ChannelTypeGitHubCopilot {
-		return countCopilotRequest(raw)
+		return countCopilotRequest(raw, copilotCost)
 	}
 	final := upstream.FinalizeTokenCounts(rctx.Input.Body, raw.PromptTokens, raw.CompletionTokens, raw.ResponseText, a.RealModel)
 	raw.PromptTokens = final.PromptTokens
@@ -51,7 +60,7 @@ func (d *Dispatcher) Dispatch(rctx *state.RelayContext, a state.Attempt) state.A
 	return raw
 }
 
-func countCopilotRequest(raw state.AttemptResult) state.AttemptResult {
+func countCopilotRequest(raw state.AttemptResult, cost int) state.AttemptResult {
 	if raw.Err != nil {
 		raw.PromptTokens = 0
 		raw.CompletionTokens = 0
@@ -60,7 +69,7 @@ func countCopilotRequest(raw state.AttemptResult) state.AttemptResult {
 		raw.TokenSource = ""
 		return raw
 	}
-	raw.PromptTokens = 1
+	raw.PromptTokens = cost
 	raw.CompletionTokens = 0
 	raw.CacheReadTokens = 0
 	raw.CacheWriteTokens = 0

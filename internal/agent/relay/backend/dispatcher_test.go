@@ -146,7 +146,7 @@ func TestDispatcherFinalizesTokenCounts(t *testing.T) {
 	}
 }
 
-func TestDispatcherCountsSuccessfulCopilotRequestsAsOneUse(t *testing.T) {
+func TestDispatcherCountsSuccessfulCopilotRequestsWithPremiumCost(t *testing.T) {
 	fake := &fakeBackend{result: state.AttemptResult{PromptTokens: 123, CompletionTokens: 456, ResponseText: "ok"}}
 	d := &Dispatcher{Backends: map[state.RelayMode]Backend{state.ModeNative: fake}}
 	rctx := &state.RelayContext{
@@ -157,11 +157,14 @@ func TestDispatcherCountsSuccessfulCopilotRequestsAsOneUse(t *testing.T) {
 	res := d.Dispatch(rctx, state.Attempt{
 		Mode:      state.ModeNative,
 		RealModel: "gpt-4",
-		Channel:   &models.Channel{Type: consts.ChannelTypeGitHubCopilot},
+		Channel: &models.Channel{
+			Type:          consts.ChannelTypeGitHubCopilot,
+			OtherSettings: `{"copilot_model_prices":{"gpt-4":7}}`,
+		},
 	})
 
-	if res.PromptTokens != 1 || res.CompletionTokens != 0 {
-		t.Fatalf("copilot usage = %d/%d, want 1/0", res.PromptTokens, res.CompletionTokens)
+	if res.PromptTokens != 7 || res.CompletionTokens != 0 {
+		t.Fatalf("copilot usage = %d/%d, want 7/0", res.PromptTokens, res.CompletionTokens)
 	}
 	if res.CacheReadTokens != 0 || res.CacheWriteTokens != 0 {
 		t.Fatalf("copilot cache tokens = %d/%d, want 0/0", res.CacheReadTokens, res.CacheWriteTokens)
@@ -182,11 +185,39 @@ func TestDispatcherDoesNotCountFailedCopilotRequests(t *testing.T) {
 	res := d.Dispatch(rctx, state.Attempt{
 		Mode:      state.ModeNative,
 		RealModel: "gpt-4",
-		Channel:   &models.Channel{Type: consts.ChannelTypeGitHubCopilot},
+		Channel: &models.Channel{
+			Type:          consts.ChannelTypeGitHubCopilot,
+			OtherSettings: `{"copilot_model_prices":{"gpt-4":7}}`,
+		},
 	})
 
 	if res.PromptTokens != 0 || res.CompletionTokens != 0 || res.TokenSource == "copilot_request" {
 		t.Fatalf("failed copilot request should not be counted, got usage=%d/%d source=%q", res.PromptTokens, res.CompletionTokens, res.TokenSource)
+	}
+}
+
+func TestDispatcherFailsCopilotRequestBeforeUpstreamWhenPremiumCostMissing(t *testing.T) {
+	fake := &fakeBackend{result: state.AttemptResult{PromptTokens: 123, CompletionTokens: 456, ResponseText: "ok"}}
+	d := &Dispatcher{Backends: map[state.RelayMode]Backend{state.ModeNative: fake}}
+	rctx := &state.RelayContext{
+		Input: state.RelayInput{Body: []byte(`{"model":"gpt-4","messages":[{"role":"user","content":"hi"}]}`)},
+		State: &state.RelayState{Recorder: trace.NewRecorder(false, 0)},
+	}
+
+	res := d.Dispatch(rctx, state.Attempt{
+		Mode:      state.ModeNative,
+		RealModel: "gpt-4",
+		Channel: &models.Channel{
+			Type:          consts.ChannelTypeGitHubCopilot,
+			OtherSettings: `{"copilot_model_prices":{"gpt-5":10}}`,
+		},
+	})
+
+	if res.Err == nil {
+		t.Fatal("expected missing copilot model pricing error")
+	}
+	if fake.callCount != 0 {
+		t.Fatalf("backend should not be called when copilot price is missing, got %d calls", fake.callCount)
 	}
 }
 

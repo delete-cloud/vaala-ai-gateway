@@ -18,6 +18,7 @@ import {
 import { FieldTip } from "@/components/business/field-tip";
 import { StatusSelect } from "@/components/business/status-select";
 import { ChannelForm } from "../types";
+import { parseOtherSettings, stringifyOtherSettings } from "../utils";
 import { API_TYPES, CHANNEL_TYPES } from "@/lib/constants";
 import { usePollCopilotDeviceLogin, useStartCopilotDeviceLogin } from "@/lib/api/channels";
 import { toast } from "sonner";
@@ -205,7 +206,11 @@ function CopilotLoginButton({
     };
   }, []);
 
-  const applyCopilotDefaults = (token: string, baseUrl: string) => {
+  const applyCopilotDefaults = (token: string, baseUrl: string, enterpriseDomain?: string) => {
+    const otherSettings = parseOtherSettings(form.other_settings);
+    if (enterpriseDomain) {
+      otherSettings.copilot_enterprise_domain = enterpriseDomain;
+    }
     setForm({
       ...form,
       key: token,
@@ -213,14 +218,13 @@ function CopilotLoginButton({
       supported_api_types: JSON.stringify([
         API_TYPES.CHAT_COMPLETION,
         API_TYPES.RESPONSES,
-        API_TYPES.CLAUDE,
       ]),
       endpoints: JSON.stringify({
-        chat_completions: "/v1/chat/completions",
-        responses: "/v1/responses",
-        messages: "/v1/messages",
+        chat_completions: "/chat/completions",
+        responses: "/responses",
         models: "/models",
       }),
+      other_settings: stringifyOtherSettings(otherSettings),
       use_legacy_adaptor: false,
     });
   };
@@ -234,7 +238,7 @@ function CopilotLoginButton({
           enterprise_url: nextDevice.enterprise_url,
         });
         if (result.status === "success" && result.access_token) {
-          applyCopilotDefaults(result.access_token, nextDevice.base_url);
+          applyCopilotDefaults(result.access_token, nextDevice.base_url, nextDevice.enterprise_url);
           toast.success(t("copilotLoginSuccess"));
           setOpen(false);
           setDevice(null);

@@ -78,12 +78,13 @@ func (r *UpdateRequest) SetBodyMap(fields map[string]any) {
 }
 
 type FetchModelsRequest struct {
-	BaseURL   string `json:"base_url"`
-	Key       string `json:"key" binding:"required"`
-	Type      int    `json:"type"`
-	Endpoints string `json:"endpoints"`
-	ProxyURL  string `json:"proxy_url"`
-	AgentID   string `json:"agent_id"`
+	BaseURL       string `json:"base_url"`
+	Key           string `json:"key" binding:"required"`
+	Type          int    `json:"type"`
+	Endpoints     string `json:"endpoints"`
+	ProxyURL      string `json:"proxy_url"`
+	AgentID       string `json:"agent_id"`
+	OtherSettings string `json:"other_settings"`
 }
 
 type TestRequest struct {
@@ -104,8 +105,14 @@ type TestResponse struct {
 }
 
 type FetchModelsResponse struct {
-	Models []string `json:"models"`
-	Error  string   `json:"error,omitempty"`
+	Models      []string            `json:"models"`
+	ModelPrices []CopilotModelPrice `json:"model_prices,omitempty"`
+	Error       string              `json:"error,omitempty"`
+}
+
+type CopilotModelPrice struct {
+	ModelName   string  `json:"model_name"`
+	PremiumCost float64 `json:"premium_cost"`
 }
 
 type CopilotDeviceStartRequest struct {
@@ -131,6 +138,34 @@ type CopilotDevicePollResponse struct {
 	AccessToken string `json:"access_token,omitempty"`
 	Interval    int    `json:"interval,omitempty"`
 	Error       string `json:"error,omitempty"`
+}
+
+type CopilotQuotaRequest struct {
+	ID string `uri:"id" binding:"required"`
+}
+
+type CopilotQuotaResponse struct {
+	PlanType         string               `json:"plan_type,omitempty"`
+	QuotaResetAt     string               `json:"quota_reset_at,omitempty"`
+	Premium          copilotQuotaSnapshot `json:"premium_interactions"`
+	Chat             copilotQuotaSnapshot `json:"chat"`
+	Completions      copilotQuotaSnapshot `json:"completions"`
+	ModelPrices      []CopilotModelPrice  `json:"model_prices,omitempty"`
+	ModelPricesError string               `json:"model_prices_error,omitempty"`
+	LastUpdatedAt    int64                `json:"last_updated_at"`
+}
+
+type copilotQuotaSnapshot struct {
+	Reported         bool    `json:"reported"`
+	Entitlement      int     `json:"entitlement"`
+	Remaining        int     `json:"remaining"`
+	Used             int     `json:"used"`
+	PercentRemaining float64 `json:"percent_remaining"`
+	PercentUsed      float64 `json:"percent_used"`
+	Unlimited        bool    `json:"unlimited"`
+	OverageCount     int     `json:"overage_count"`
+	OveragePermitted bool    `json:"overage_permitted"`
+	QuotaID          string  `json:"quota_id,omitempty"`
 }
 
 type TypeMeta struct {

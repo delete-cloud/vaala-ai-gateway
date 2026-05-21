@@ -130,8 +130,17 @@ export function LegacyChannelForm({
             endpoints={form.endpoints}
             proxyUrl={form.proxy_url || setting.proxy}
             agentId={agentId}
+            otherSettings={form.other_settings}
             existingModels={form.models ? form.models.split(",").map(s => s.trim()).filter(Boolean) : []}
-            onModelsSelected={(models) => setForm({ ...form, models: models.join(",") })}
+            onModelsSelected={(models, prices) =>
+              setForm({
+                ...form,
+                models: models.join(","),
+                other_settings: prices
+                  ? stringifyOtherSettings({ ...otherSettings, copilot_model_prices: prices })
+                  : form.other_settings,
+              })
+            }
           />
         </div>
         <ModelSelectorPanel

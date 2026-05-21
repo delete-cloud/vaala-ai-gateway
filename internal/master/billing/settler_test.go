@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VaalaCat/ai-gateway/internal/consts"
 	"github.com/VaalaCat/ai-gateway/internal/models"
 	"github.com/VaalaCat/ai-gateway/internal/pkg/eventbus"
 	"github.com/VaalaCat/ai-gateway/internal/pkg/protocol"
@@ -27,6 +28,49 @@ func setupTestDB(t *testing.T) (*gorm.DB, *testAppProvider) {
 	}
 	models.AutoMigrate(db)
 	return db, &testAppProvider{db: db}
+}
+
+func TestSettleUsage_CopilotRequestConsumesReportedPremiumCost(t *testing.T) {
+	db, appProv := setupTestDB(t)
+	bus := eventbus.NewMemoryBus()
+	logger, _ := zap.NewDevelopment()
+
+	db.Create(&models.User{Username: "copilot-user", Password: "x", Role: 1, Status: 1, Quota: 10})
+
+	settler := NewSettler(appProv, bus, logger)
+	settler.Settle(context.Background(), "test-agent", []protocol.UsageLogEntry{
+		{
+			RequestID:    "req-copilot-1",
+			UserID:       1,
+			TokenID:      1,
+			ChannelID:    1,
+			ModelName:    "gpt-5",
+			PromptTokens: 3,
+			Status:       1,
+			TokenSource:  "copilot_request",
+			Other:        `{"channel_type":1001,"channel_name":"github-copilot"}`,
+			Timestamp:    time.Now().Unix(),
+		},
+	})
+
+	var log models.UsageLog
+	if err := db.Where("request_id = ?", "req-copilot-1").First(&log).Error; err != nil {
+		t.Fatalf("query usage log failed: %v", err)
+	}
+	if log.ChannelType != consts.ChannelTypeGitHubCopilot {
+		t.Fatalf("channel_type = %d, want %d", log.ChannelType, consts.ChannelTypeGitHubCopilot)
+	}
+	if log.TotalCost != 3 || log.InputCost != 3 || log.OutputCost != 0 {
+		t.Fatalf("copilot costs input=%d output=%d total=%d, want 3/0/3", log.InputCost, log.OutputCost, log.TotalCost)
+	}
+
+	var user models.User
+	if err := db.First(&user, 1).Error; err != nil {
+		t.Fatalf("query user failed: %v", err)
+	}
+	if user.Quota != 7 || user.UsedQuota != 3 {
+		t.Fatalf("quota=%d used=%d, want 7/3", user.Quota, user.UsedQuota)
+	}
 }
 
 func TestSettleUsage(t *testing.T) {
