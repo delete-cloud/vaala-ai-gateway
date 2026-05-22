@@ -35,7 +35,7 @@ func TestSettleUsage_CopilotRequestConsumesReportedPremiumCost(t *testing.T) {
 	bus := eventbus.NewMemoryBus()
 	logger, _ := zap.NewDevelopment()
 
-	db.Create(&models.User{Username: "copilot-user", Password: "x", Role: 1, Status: 1, Quota: 10})
+	db.Create(&models.User{Username: "copilot-user", Password: "x", Role: 1, Status: 1, Quota: 1000})
 
 	settler := NewSettler(appProv, bus, logger)
 	settler.Settle(context.Background(), "test-agent", []protocol.UsageLogEntry{
@@ -45,7 +45,7 @@ func TestSettleUsage_CopilotRequestConsumesReportedPremiumCost(t *testing.T) {
 			TokenID:      1,
 			ChannelID:    1,
 			ModelName:    "gpt-5",
-			PromptTokens: 3,
+			PromptTokens: 33,
 			Status:       1,
 			TokenSource:  "copilot_request",
 			Other:        `{"channel_type":1001,"channel_name":"github-copilot"}`,
@@ -60,16 +60,16 @@ func TestSettleUsage_CopilotRequestConsumesReportedPremiumCost(t *testing.T) {
 	if log.ChannelType != consts.ChannelTypeGitHubCopilot {
 		t.Fatalf("channel_type = %d, want %d", log.ChannelType, consts.ChannelTypeGitHubCopilot)
 	}
-	if log.TotalCost != 3 || log.InputCost != 3 || log.OutputCost != 0 {
-		t.Fatalf("copilot costs input=%d output=%d total=%d, want 3/0/3", log.InputCost, log.OutputCost, log.TotalCost)
+	if log.TotalCost != 33 || log.InputCost != 33 || log.OutputCost != 0 {
+		t.Fatalf("copilot costs input=%d output=%d total=%d, want 33/0/33", log.InputCost, log.OutputCost, log.TotalCost)
 	}
 
 	var user models.User
 	if err := db.First(&user, 1).Error; err != nil {
 		t.Fatalf("query user failed: %v", err)
 	}
-	if user.Quota != 7 || user.UsedQuota != 3 {
-		t.Fatalf("quota=%d used=%d, want 7/3", user.Quota, user.UsedQuota)
+	if user.Quota != 967 || user.UsedQuota != 33 {
+		t.Fatalf("quota=%d used=%d, want 967/33", user.Quota, user.UsedQuota)
 	}
 }
 

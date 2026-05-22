@@ -41,17 +41,17 @@ func (d *Dispatcher) Dispatch(rctx *state.RelayContext, a state.Attempt) state.A
 	if !ok {
 		return state.AttemptResult{Err: fmt.Errorf("no backend for mode %q", string(a.Mode))}
 	}
-	copilotCost := 0
+	copilotCostUnits := 0
 	if a.Channel != nil && a.Channel.Type == consts.ChannelTypeGitHubCopilot {
-		cost, ok := copilot.PremiumCostFromOtherSettings(a.Channel.OtherSettings, a.RealModel)
+		cost, ok := copilot.PremiumCostUnitsFromOtherSettings(a.Channel.OtherSettings, a.RealModel)
 		if !ok {
 			return state.AttemptResult{Err: fmt.Errorf("github copilot premium cost is not configured for model %q", a.RealModel)}
 		}
-		copilotCost = cost
+		copilotCostUnits = cost
 	}
 	raw := backend.Relay(rctx, a)
 	if a.Channel != nil && a.Channel.Type == consts.ChannelTypeGitHubCopilot {
-		return countCopilotRequest(raw, copilotCost)
+		return countCopilotRequest(raw, copilotCostUnits)
 	}
 	final := upstream.FinalizeTokenCounts(rctx.Input.Body, raw.PromptTokens, raw.CompletionTokens, raw.ResponseText, a.RealModel)
 	raw.PromptTokens = final.PromptTokens
@@ -60,7 +60,7 @@ func (d *Dispatcher) Dispatch(rctx *state.RelayContext, a state.Attempt) state.A
 	return raw
 }
 
-func countCopilotRequest(raw state.AttemptResult, cost int) state.AttemptResult {
+func countCopilotRequest(raw state.AttemptResult, costUnits int) state.AttemptResult {
 	if raw.Err != nil {
 		raw.PromptTokens = 0
 		raw.CompletionTokens = 0
@@ -69,7 +69,7 @@ func countCopilotRequest(raw state.AttemptResult, cost int) state.AttemptResult 
 		raw.TokenSource = ""
 		return raw
 	}
-	raw.PromptTokens = cost
+	raw.PromptTokens = costUnits
 	raw.CompletionTokens = 0
 	raw.CacheReadTokens = 0
 	raw.CacheWriteTokens = 0

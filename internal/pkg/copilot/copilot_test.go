@@ -265,7 +265,18 @@ func TestPremiumCostForModelIncludesZeroCostModels(t *testing.T) {
 func TestPremiumCostFromOtherSettingsAllowsKnownZeroCost(t *testing.T) {
 	cost, ok := PremiumCostFromOtherSettings(`{"copilot_model_prices":{"gpt-5-mini":0}}`, "gpt-5-mini")
 	if !ok || cost != 0 {
-		t.Fatalf("premium cost = %d/%v, want 0/true", cost, ok)
+		t.Fatalf("premium cost = %v/%v, want 0/true", cost, ok)
+	}
+}
+
+func TestPremiumCostUnitsFromOtherSettingsPreservesFractionalCosts(t *testing.T) {
+	cost, ok := PremiumCostUnitsFromOtherSettings(`{"copilot_model_prices":{"gpt-5.4-mini":0.33,"gpt-5.5":7.5}}`, "gpt-5.4-mini")
+	if !ok || cost != 33 {
+		t.Fatalf("premium cost units = %d/%v, want 33/true", cost, ok)
+	}
+	cost, ok = PremiumCostUnitsFromOtherSettings(`{"copilot_model_prices":{"gpt-5.4-mini":0.33,"gpt-5.5":7.5}}`, "gpt-5.5")
+	if !ok || cost != 750 {
+		t.Fatalf("premium cost units = %d/%v, want 750/true", cost, ok)
 	}
 }
 

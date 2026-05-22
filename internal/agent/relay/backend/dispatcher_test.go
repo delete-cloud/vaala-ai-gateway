@@ -163,11 +163,36 @@ func TestDispatcherCountsSuccessfulCopilotRequestsWithPremiumCost(t *testing.T) 
 		},
 	})
 
-	if res.PromptTokens != 7 || res.CompletionTokens != 0 {
-		t.Fatalf("copilot usage = %d/%d, want 7/0", res.PromptTokens, res.CompletionTokens)
+	if res.PromptTokens != 700 || res.CompletionTokens != 0 {
+		t.Fatalf("copilot usage = %d/%d, want 700/0", res.PromptTokens, res.CompletionTokens)
 	}
 	if res.CacheReadTokens != 0 || res.CacheWriteTokens != 0 {
 		t.Fatalf("copilot cache tokens = %d/%d, want 0/0", res.CacheReadTokens, res.CacheWriteTokens)
+	}
+	if res.TokenSource != "copilot_request" {
+		t.Fatalf("TokenSource = %q, want copilot_request", res.TokenSource)
+	}
+}
+
+func TestDispatcherCountsFractionalCopilotPremiumCost(t *testing.T) {
+	fake := &fakeBackend{result: state.AttemptResult{PromptTokens: 123, CompletionTokens: 456, ResponseText: "ok"}}
+	d := &Dispatcher{Backends: map[state.RelayMode]Backend{state.ModeNative: fake}}
+	rctx := &state.RelayContext{
+		Input: state.RelayInput{Body: []byte(`{"model":"gpt-5.4-mini","messages":[{"role":"user","content":"hi"}]}`)},
+		State: &state.RelayState{Recorder: trace.NewRecorder(false, 0)},
+	}
+
+	res := d.Dispatch(rctx, state.Attempt{
+		Mode:      state.ModeNative,
+		RealModel: "gpt-5.4-mini",
+		Channel: &models.Channel{
+			Type:          consts.ChannelTypeGitHubCopilot,
+			OtherSettings: `{"copilot_model_prices":{"gpt-5.4-mini":0.33}}`,
+		},
+	})
+
+	if res.PromptTokens != 33 || res.CompletionTokens != 0 {
+		t.Fatalf("copilot usage = %d/%d, want 33/0", res.PromptTokens, res.CompletionTokens)
 	}
 	if res.TokenSource != "copilot_request" {
 		t.Fatalf("TokenSource = %q, want copilot_request", res.TokenSource)
