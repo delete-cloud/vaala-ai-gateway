@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/VaalaCat/ai-gateway/internal/agent/relay/backend/legacy"
@@ -19,8 +20,11 @@ import (
 //
 // Backends 字段导出方便测试构造，生产链路统一走 NewDispatcher。
 type Dispatcher struct {
-	Backends map[state.RelayMode]Backend
+	Backends            map[state.RelayMode]Backend
+	CopilotQuotaLimiter copilotQuotaLimiter
 }
+
+var defaultCopilotQuotaLimiter = newAccountCopilotQuotaLimiter(defaultCopilotQuotaFetch)
 
 // NewDispatcher 注册 3 个内置 backend 并把 agent 注入到所有 backend。
 // agent 允许为 nil（测试场景），backend 内部各 Getter 会做 nil 守卫。
@@ -31,6 +35,7 @@ func NewDispatcher(agent app.AgentApplication) *Dispatcher {
 			state.ModeLegacy:      &legacy.Backend{Agent: agent},
 			state.ModePassthrough: &passthrough.Backend{Agent: agent},
 		},
+		CopilotQuotaLimiter: defaultCopilotQuotaLimiter,
 	}
 }
 
@@ -48,16 +53,41 @@ func (d *Dispatcher) Dispatch(rctx *state.RelayContext, a state.Attempt) state.A
 			return state.AttemptResult{Err: fmt.Errorf("github copilot premium cost is not configured for model %q", a.RealModel)}
 		}
 		copilotCost = cost
-	}
-	raw := backend.Relay(rctx, a)
-	if a.Channel != nil && a.Channel.Type == consts.ChannelTypeGitHubCopilot {
+		reservation, err := d.copilotQuotaLimiter().Reserve(relayContext(rctx), a.Channel, relayTransportPool(rctx), copilotCost)
+		if err != nil {
+			return state.AttemptResult{Err: err}
+		}
+		raw := backend.Relay(rctx, a)
+		reservation(raw.Err == nil)
 		return countCopilotRequest(raw, copilotCost)
 	}
+	raw := backend.Relay(rctx, a)
 	final := upstream.FinalizeTokenCounts(rctx.Input.Body, raw.PromptTokens, raw.CompletionTokens, raw.ResponseText, a.RealModel)
 	raw.PromptTokens = final.PromptTokens
 	raw.CompletionTokens = final.CompletionTokens
 	raw.TokenSource = string(final.Source)
 	return raw
+}
+
+func (d *Dispatcher) copilotQuotaLimiter() copilotQuotaLimiter {
+	if d != nil && d.CopilotQuotaLimiter != nil {
+		return d.CopilotQuotaLimiter
+	}
+	return defaultCopilotQuotaLimiter
+}
+
+func relayContext(rctx *state.RelayContext) context.Context {
+	if rctx != nil && rctx.Context != nil && rctx.Request != nil {
+		return rctx.Request.Context()
+	}
+	return context.Background()
+}
+
+func relayTransportPool(rctx *state.RelayContext) app.TransportPool {
+	if rctx != nil && rctx.Agent != nil {
+		return rctx.Agent.GetTransportPool()
+	}
+	return nil
 }
 
 func countCopilotRequest(raw state.AttemptResult, cost float64) state.AttemptResult {

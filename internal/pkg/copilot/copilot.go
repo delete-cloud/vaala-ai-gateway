@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -104,13 +103,13 @@ type APIToken struct {
 
 type QuotaSnapshot struct {
 	Reported         bool    `json:"reported"`
-	Entitlement      int     `json:"entitlement"`
-	Remaining        int     `json:"remaining"`
-	Used             int     `json:"used"`
+	Entitlement      float64 `json:"entitlement"`
+	Remaining        float64 `json:"remaining"`
+	Used             float64 `json:"used"`
 	PercentRemaining float64 `json:"percent_remaining"`
 	PercentUsed      float64 `json:"percent_used"`
 	Unlimited        bool    `json:"unlimited"`
-	OverageCount     int     `json:"overage_count"`
+	OverageCount     float64 `json:"overage_count"`
 	OveragePermitted bool    `json:"overage_permitted"`
 	QuotaID          string  `json:"quota_id,omitempty"`
 }
@@ -775,11 +774,11 @@ type rawQuotaSnapshot struct {
 }
 
 func normalizeQuotaSnapshot(raw rawQuotaSnapshot) QuotaSnapshot {
-	remaining := roundedInt(raw.Remaining)
+	remaining := raw.Remaining
 	if remaining == 0 {
-		remaining = roundedInt(raw.QuotaRemaining)
+		remaining = raw.QuotaRemaining
 	}
-	entitlement := roundedInt(raw.Entitlement)
+	entitlement := raw.Entitlement
 	reported := raw.Unlimited || raw.PercentRemaining > 0 || entitlement > 0 || remaining > 0
 	used := entitlement - remaining
 	if used < 0 {
@@ -800,14 +799,10 @@ func normalizeQuotaSnapshot(raw rawQuotaSnapshot) QuotaSnapshot {
 		PercentRemaining: percentRemaining,
 		PercentUsed:      clampPercent(100 - percentRemaining),
 		Unlimited:        raw.Unlimited,
-		OverageCount:     roundedInt(raw.OverageCount),
+		OverageCount:     raw.OverageCount,
 		OveragePermitted: raw.OveragePermitted,
 		QuotaID:          raw.QuotaID,
 	}
-}
-
-func roundedInt(v float64) int {
-	return int(math.Round(v))
 }
 
 func trustedAPIBaseURL(raw string) string {

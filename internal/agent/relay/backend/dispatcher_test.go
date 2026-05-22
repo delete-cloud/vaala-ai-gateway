@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -11,6 +12,8 @@ import (
 	"github.com/VaalaCat/ai-gateway/internal/agent/relay/trace"
 	"github.com/VaalaCat/ai-gateway/internal/consts"
 	"github.com/VaalaCat/ai-gateway/internal/models"
+	"github.com/VaalaCat/ai-gateway/internal/pkg/app"
+	"github.com/VaalaCat/ai-gateway/internal/pkg/copilot"
 )
 
 // TestAttemptPlanZero：零值 plan 必须可读：空 slice / 空字符串 / 空 trace。
@@ -113,6 +116,22 @@ func (f *fakeBackend) Relay(rctx *state.RelayContext, a state.Attempt) state.Att
 	return f.result
 }
 
+type fakeCopilotQuotaLimiter struct {
+	err      error
+	reserved []float64
+	finished []bool
+}
+
+func (f *fakeCopilotQuotaLimiter) Reserve(_ context.Context, _ *models.Channel, _ app.TransportPool, cost float64) (copilotQuotaReservation, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	f.reserved = append(f.reserved, cost)
+	return func(success bool) {
+		f.finished = append(f.finished, success)
+	}, nil
+}
+
 // TestDispatcherUnknownMode 失败路径：未注册的 mode 必须返回带 error 的 AttemptResult，
 // 不能 panic / 不能静默返回零值。
 func TestDispatcherUnknownMode(t *testing.T) {
@@ -148,7 +167,8 @@ func TestDispatcherFinalizesTokenCounts(t *testing.T) {
 
 func TestDispatcherCountsSuccessfulCopilotRequestsWithPremiumCost(t *testing.T) {
 	fake := &fakeBackend{result: state.AttemptResult{PromptTokens: 123, CompletionTokens: 456, ResponseText: "ok"}}
-	d := &Dispatcher{Backends: map[state.RelayMode]Backend{state.ModeNative: fake}}
+	quotaLimiter := &fakeCopilotQuotaLimiter{}
+	d := &Dispatcher{Backends: map[state.RelayMode]Backend{state.ModeNative: fake}, CopilotQuotaLimiter: quotaLimiter}
 	rctx := &state.RelayContext{
 		Input: state.RelayInput{Body: []byte(`{"model":"gpt-4","messages":[{"role":"user","content":"hi"}]}`)},
 		State: &state.RelayState{Recorder: trace.NewRecorder(false, 0)},
@@ -172,11 +192,15 @@ func TestDispatcherCountsSuccessfulCopilotRequestsWithPremiumCost(t *testing.T) 
 	if res.TokenSource != "copilot_request" {
 		t.Fatalf("TokenSource = %q, want copilot_request", res.TokenSource)
 	}
+	if len(quotaLimiter.reserved) != 1 || quotaLimiter.reserved[0] != 7 || len(quotaLimiter.finished) != 1 || !quotaLimiter.finished[0] {
+		t.Fatalf("quota reservation = %#v finished=%#v, want cost=7 success=true", quotaLimiter.reserved, quotaLimiter.finished)
+	}
 }
 
 func TestDispatcherCountsFractionalCopilotPremiumCost(t *testing.T) {
 	fake := &fakeBackend{result: state.AttemptResult{PromptTokens: 123, CompletionTokens: 456, ResponseText: "ok"}}
-	d := &Dispatcher{Backends: map[state.RelayMode]Backend{state.ModeNative: fake}}
+	quotaLimiter := &fakeCopilotQuotaLimiter{}
+	d := &Dispatcher{Backends: map[state.RelayMode]Backend{state.ModeNative: fake}, CopilotQuotaLimiter: quotaLimiter}
 	rctx := &state.RelayContext{
 		Input: state.RelayInput{Body: []byte(`{"model":"gpt-5.4-mini","messages":[{"role":"user","content":"hi"}]}`)},
 		State: &state.RelayState{Recorder: trace.NewRecorder(false, 0)},
@@ -197,11 +221,15 @@ func TestDispatcherCountsFractionalCopilotPremiumCost(t *testing.T) {
 	if res.TokenSource != "copilot_request" {
 		t.Fatalf("TokenSource = %q, want copilot_request", res.TokenSource)
 	}
+	if len(quotaLimiter.reserved) != 1 || quotaLimiter.reserved[0] != 0.33 || len(quotaLimiter.finished) != 1 || !quotaLimiter.finished[0] {
+		t.Fatalf("quota reservation = %#v finished=%#v, want cost=0.33 success=true", quotaLimiter.reserved, quotaLimiter.finished)
+	}
 }
 
 func TestDispatcherDoesNotCountFailedCopilotRequests(t *testing.T) {
 	fake := &fakeBackend{result: state.AttemptResult{Err: errors.New("upstream failed")}}
-	d := &Dispatcher{Backends: map[state.RelayMode]Backend{state.ModeNative: fake}}
+	quotaLimiter := &fakeCopilotQuotaLimiter{}
+	d := &Dispatcher{Backends: map[state.RelayMode]Backend{state.ModeNative: fake}, CopilotQuotaLimiter: quotaLimiter}
 	rctx := &state.RelayContext{
 		Input: state.RelayInput{Body: []byte(`{"model":"gpt-4","messages":[{"role":"user","content":"hi"}]}`)},
 		State: &state.RelayState{Recorder: trace.NewRecorder(false, 0)},
@@ -218,6 +246,9 @@ func TestDispatcherDoesNotCountFailedCopilotRequests(t *testing.T) {
 
 	if res.PromptTokens != 0 || res.CompletionTokens != 0 || res.TokenSource == "copilot_request" {
 		t.Fatalf("failed copilot request should not be counted, got usage=%d/%d source=%q", res.PromptTokens, res.CompletionTokens, res.TokenSource)
+	}
+	if len(quotaLimiter.finished) != 1 || quotaLimiter.finished[0] {
+		t.Fatalf("quota reservation should be released as failed, got %#v", quotaLimiter.finished)
 	}
 }
 
@@ -243,6 +274,102 @@ func TestDispatcherFailsCopilotRequestBeforeUpstreamWhenPremiumCostMissing(t *te
 	}
 	if fake.callCount != 0 {
 		t.Fatalf("backend should not be called when copilot price is missing, got %d calls", fake.callCount)
+	}
+}
+
+func TestDispatcherFailsCopilotRequestBeforeUpstreamWhenQuotaExceeded(t *testing.T) {
+	fake := &fakeBackend{result: state.AttemptResult{ResponseText: "ok"}}
+	quotaLimiter := &fakeCopilotQuotaLimiter{err: errors.New("github copilot premium quota exceeded")}
+	d := &Dispatcher{Backends: map[state.RelayMode]Backend{state.ModeNative: fake}, CopilotQuotaLimiter: quotaLimiter}
+	rctx := &state.RelayContext{
+		Input: state.RelayInput{Body: []byte(`{"model":"gpt-5.4-mini","messages":[{"role":"user","content":"hi"}]}`)},
+		State: &state.RelayState{Recorder: trace.NewRecorder(false, 0)},
+	}
+
+	res := d.Dispatch(rctx, state.Attempt{
+		Mode:      state.ModeNative,
+		RealModel: "gpt-5.4-mini",
+		Channel: &models.Channel{
+			Type:          consts.ChannelTypeGitHubCopilot,
+			OtherSettings: `{"copilot_model_prices":{"gpt-5.4-mini":0.33}}`,
+		},
+	})
+
+	if res.Err == nil {
+		t.Fatal("expected quota error")
+	}
+	if fake.callCount != 0 {
+		t.Fatalf("backend should not be called when copilot quota is exhausted, got %d calls", fake.callCount)
+	}
+}
+
+func TestAccountCopilotQuotaLimiterPreservesFractionalReservations(t *testing.T) {
+	limiter := newAccountCopilotQuotaLimiter(staticCopilotQuotaFetcher(copilot.Quota{
+		QuotaResetAt: "2026-05-01T00:00:00Z",
+		Premium: copilot.QuotaSnapshot{
+			Reported:    true,
+			Entitlement: 1,
+			Remaining:   1,
+			QuotaID:     "premium",
+		},
+	}))
+	ch := &models.Channel{ID: 1, Key: "github-token"}
+
+	for i := 0; i < 3; i++ {
+		reserve, err := limiter.Reserve(context.Background(), ch, nil, 0.33)
+		if err != nil {
+			t.Fatalf("reservation %d failed: %v", i+1, err)
+		}
+		reserve(true)
+	}
+	if _, err := limiter.Reserve(context.Background(), ch, nil, 0.33); err == nil {
+		t.Fatal("expected fourth 0.33 reservation to exceed 1.00 remaining quota")
+	}
+}
+
+func TestAccountCopilotQuotaLimiterAllowsZeroCostWithoutQuota(t *testing.T) {
+	limiter := newAccountCopilotQuotaLimiter(func(context.Context, *models.Channel, app.TransportPool) (copilot.Quota, error) {
+		t.Fatal("zero-cost models should not fetch quota")
+		return copilot.Quota{}, nil
+	})
+
+	reserve, err := limiter.Reserve(context.Background(), &models.Channel{ID: 1}, nil, 0)
+	if err != nil {
+		t.Fatalf("zero-cost reservation failed: %v", err)
+	}
+	reserve(true)
+}
+
+func TestAccountCopilotQuotaLimiterFailsClosedWhenQuotaFetchFails(t *testing.T) {
+	limiter := newAccountCopilotQuotaLimiter(func(context.Context, *models.Channel, app.TransportPool) (copilot.Quota, error) {
+		return copilot.Quota{}, errors.New("upstream unavailable")
+	})
+
+	if _, err := limiter.Reserve(context.Background(), &models.Channel{ID: 1, Key: "github-token"}, nil, 0.33); err == nil {
+		t.Fatal("expected quota fetch failure to block copilot request")
+	}
+}
+
+func TestAccountCopilotQuotaLimiterAllowsUnlimitedQuota(t *testing.T) {
+	limiter := newAccountCopilotQuotaLimiter(staticCopilotQuotaFetcher(copilot.Quota{
+		Premium: copilot.QuotaSnapshot{
+			Reported:  true,
+			Unlimited: true,
+		},
+	}))
+
+	for i := 0; i < 10; i++ {
+		reserve, err := limiter.Reserve(context.Background(), &models.Channel{ID: 1, Key: "github-token"}, nil, 100)
+		if err != nil {
+			t.Fatalf("unlimited reservation %d failed: %v", i+1, err)
+		}
+		reserve(true)
+	}
+}
+
+func staticCopilotQuotaFetcher(quota copilot.Quota) copilotQuotaFetcher {
+	return func(context.Context, *models.Channel, app.TransportPool) (copilot.Quota, error) {
+		return quota, nil
 	}
 }
 

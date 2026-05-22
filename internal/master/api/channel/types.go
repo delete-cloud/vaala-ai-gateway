@@ -157,13 +157,13 @@ type CopilotQuotaResponse struct {
 
 type copilotQuotaSnapshot struct {
 	Reported         bool    `json:"reported"`
-	Entitlement      int     `json:"entitlement"`
-	Remaining        int     `json:"remaining"`
-	Used             int     `json:"used"`
+	Entitlement      float64 `json:"entitlement"`
+	Remaining        float64 `json:"remaining"`
+	Used             float64 `json:"used"`
 	PercentRemaining float64 `json:"percent_remaining"`
 	PercentUsed      float64 `json:"percent_used"`
 	Unlimited        bool    `json:"unlimited"`
-	OverageCount     int     `json:"overage_count"`
+	OverageCount     float64 `json:"overage_count"`
 	OveragePermitted bool    `json:"overage_permitted"`
 	QuotaID          string  `json:"quota_id,omitempty"`
 }
