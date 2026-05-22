@@ -60,7 +60,7 @@ func TestAdminBillingMutationUpsert(t *testing.T) {
 		t.Fatalf("count token daily billing rows: %v", err)
 	}
 	if tokenCount != 1 {
-		t.Fatalf("token daily billing rows = %d, want 1", tokenCount)
+		t.Fatalf("token daily billing rows = %v, want 1", tokenCount)
 	}
 
 	var tokenDaily models.TokenDailyBilling
@@ -68,19 +68,19 @@ func TestAdminBillingMutationUpsert(t *testing.T) {
 		t.Fatalf("query token daily billing: %v", err)
 	}
 	if tokenDaily.RequestCount != 2 {
-		t.Fatalf("request_count = %d, want 2", tokenDaily.RequestCount)
+		t.Fatalf("request_count = %v, want 2", tokenDaily.RequestCount)
 	}
 	if tokenDaily.SuccessCount != 1 {
-		t.Fatalf("success_count = %d, want 1", tokenDaily.SuccessCount)
+		t.Fatalf("success_count = %v, want 1", tokenDaily.SuccessCount)
 	}
 	if tokenDaily.FailedCount != 1 {
-		t.Fatalf("failed_count = %d, want 1", tokenDaily.FailedCount)
+		t.Fatalf("failed_count = %v, want 1", tokenDaily.FailedCount)
 	}
 	if tokenDaily.TotalCost != 80 {
-		t.Fatalf("total_cost = %d, want 80", tokenDaily.TotalCost)
+		t.Fatalf("total_cost = %v, want 80", tokenDaily.TotalCost)
 	}
 	if tokenDaily.LastUsedAt != second.CreatedAt {
-		t.Fatalf("last_used_at = %d, want %d", tokenDaily.LastUsedAt, second.CreatedAt)
+		t.Fatalf("last_used_at = %v, want %v", tokenDaily.LastUsedAt, second.CreatedAt)
 	}
 
 	var channelCount int64
@@ -88,7 +88,7 @@ func TestAdminBillingMutationUpsert(t *testing.T) {
 		t.Fatalf("count channel daily billing rows: %v", err)
 	}
 	if channelCount != 1 {
-		t.Fatalf("channel daily billing rows = %d, want 1", channelCount)
+		t.Fatalf("channel daily billing rows = %v, want 1", channelCount)
 	}
 
 	var channelDaily models.ChannelDailyBilling
@@ -96,19 +96,19 @@ func TestAdminBillingMutationUpsert(t *testing.T) {
 		t.Fatalf("query channel daily billing: %v", err)
 	}
 	if channelDaily.RequestCount != 2 {
-		t.Fatalf("request_count = %d, want 2", channelDaily.RequestCount)
+		t.Fatalf("request_count = %v, want 2", channelDaily.RequestCount)
 	}
 	if channelDaily.SuccessCount != 1 {
-		t.Fatalf("success_count = %d, want 1", channelDaily.SuccessCount)
+		t.Fatalf("success_count = %v, want 1", channelDaily.SuccessCount)
 	}
 	if channelDaily.FailedCount != 1 {
-		t.Fatalf("failed_count = %d, want 1", channelDaily.FailedCount)
+		t.Fatalf("failed_count = %v, want 1", channelDaily.FailedCount)
 	}
 	if channelDaily.TotalCost != 80 {
-		t.Fatalf("total_cost = %d, want 80", channelDaily.TotalCost)
+		t.Fatalf("total_cost = %v, want 80", channelDaily.TotalCost)
 	}
 	if channelDaily.LastUsedAt != second.CreatedAt {
-		t.Fatalf("last_used_at = %d, want %d", channelDaily.LastUsedAt, second.CreatedAt)
+		t.Fatalf("last_used_at = %v, want %v", channelDaily.LastUsedAt, second.CreatedAt)
 	}
 }
 
@@ -156,25 +156,25 @@ func TestAdminBillingQuery_ListTokenBilling_IgnoresTokenRenames(t *testing.T) {
 		t.Fatalf("list token billing: %v", err)
 	}
 	if total != 1 {
-		t.Fatalf("total = %d, want 1", total)
+		t.Fatalf("total = %v, want 1", total)
 	}
 	if len(items) != 1 {
-		t.Fatalf("rows = %d, want 1", len(items))
+		t.Fatalf("rows = %v, want 1", len(items))
 	}
 	if items[0].TokenID != tokenID {
-		t.Fatalf("token_id = %d, want %d", items[0].TokenID, tokenID)
+		t.Fatalf("token_id = %v, want %v", items[0].TokenID, tokenID)
 	}
 	if items[0].TokenName != "new-name" {
 		t.Fatalf("token_name = %q, want %q", items[0].TokenName, "new-name")
 	}
 	if items[0].RequestCount != 5 {
-		t.Fatalf("request_count = %d, want 5", items[0].RequestCount)
+		t.Fatalf("request_count = %v, want 5", items[0].RequestCount)
 	}
 	if items[0].TotalCost != 300 {
-		t.Fatalf("total_cost = %d, want 300", items[0].TotalCost)
+		t.Fatalf("total_cost = %v, want 300", items[0].TotalCost)
 	}
 	if items[0].LastUsedAt != secondUsedAt {
-		t.Fatalf("last_used_at = %d, want %d", items[0].LastUsedAt, secondUsedAt)
+		t.Fatalf("last_used_at = %v, want %v", items[0].LastUsedAt, secondUsedAt)
 	}
 }
 
@@ -220,27 +220,27 @@ func TestAdminBillingQuery_ListChannelBilling_IgnoresChannelRenames(t *testing.T
 		t.Fatalf("list channel billing: %v", err)
 	}
 	if total != 1 {
-		t.Fatalf("total = %d, want 1", total)
+		t.Fatalf("total = %v, want 1", total)
 	}
 	if len(items) != 1 {
-		t.Fatalf("rows = %d, want 1", len(items))
+		t.Fatalf("rows = %v, want 1", len(items))
 	}
 	if items[0].ChannelID != channelID {
-		t.Fatalf("channel_id = %d, want %d", items[0].ChannelID, channelID)
+		t.Fatalf("channel_id = %v, want %v", items[0].ChannelID, channelID)
 	}
 	if items[0].ChannelName != "new-channel" {
 		t.Fatalf("channel_name = %q, want %q", items[0].ChannelName, "new-channel")
 	}
 	if items[0].ChannelType != 2 {
-		t.Fatalf("channel_type = %d, want 2", items[0].ChannelType)
+		t.Fatalf("channel_type = %v, want 2", items[0].ChannelType)
 	}
 	if items[0].RequestCount != 5 {
-		t.Fatalf("request_count = %d, want 5", items[0].RequestCount)
+		t.Fatalf("request_count = %v, want 5", items[0].RequestCount)
 	}
 	if items[0].TotalCost != 300 {
-		t.Fatalf("total_cost = %d, want 300", items[0].TotalCost)
+		t.Fatalf("total_cost = %v, want 300", items[0].TotalCost)
 	}
 	if items[0].LastUsedAt != secondUsedAt {
-		t.Fatalf("last_used_at = %d, want %d", items[0].LastUsedAt, secondUsedAt)
+		t.Fatalf("last_used_at = %v, want %v", items[0].LastUsedAt, secondUsedAt)
 	}
 }

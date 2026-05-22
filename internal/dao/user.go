@@ -31,8 +31,8 @@ type AdminUserMutation interface {
 	Create(user *models.User) error
 	Update(id uint, updates map[string]any) error
 	Delete(id uint) error
-	UpdateQuota(id uint, delta int64) error
-	DeductQuota(id uint, amount int64) (remainingQuota int64, err error)
+	UpdateQuota(id uint, delta float64) error
+	DeductQuota(id uint, amount float64) (remainingQuota float64, err error)
 }
 
 type userQuery struct{ ctx *userContextImpl }
@@ -138,7 +138,7 @@ func (m *adminUserMutation) Delete(id uint) error {
 	return m.ctx.GetDB().Delete(&models.User{}, id).Error
 }
 
-func (m *adminUserMutation) UpdateQuota(id uint, delta int64) error {
+func (m *adminUserMutation) UpdateQuota(id uint, delta float64) error {
 	return m.ctx.GetDB().Model(&models.User{}).Where("id = ?", id).
 		Update("quota", gorm.Expr("quota + ?", delta)).Error
 }
@@ -146,7 +146,7 @@ func (m *adminUserMutation) UpdateQuota(id uint, delta int64) error {
 // DeductQuota atomically decrements quota and increments used_quota by amount,
 // then returns the resulting quota value. Must be called within RunInTx for
 // the returned value to be reliable under concurrent access.
-func (m *adminUserMutation) DeductQuota(id uint, amount int64) (int64, error) {
+func (m *adminUserMutation) DeductQuota(id uint, amount float64) (float64, error) {
 	result := m.ctx.GetDB().Model(&models.User{}).Where("id = ?", id).
 		Updates(map[string]any{
 			"quota":      gorm.Expr("quota - ?", amount),

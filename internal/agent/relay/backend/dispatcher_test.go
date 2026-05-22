@@ -163,8 +163,8 @@ func TestDispatcherCountsSuccessfulCopilotRequestsWithPremiumCost(t *testing.T) 
 		},
 	})
 
-	if res.PromptTokens != 700 || res.CompletionTokens != 0 {
-		t.Fatalf("copilot usage = %d/%d, want 700/0", res.PromptTokens, res.CompletionTokens)
+	if res.PromptTokens != 0 || res.CompletionTokens != 0 || res.BillingCost != 7 {
+		t.Fatalf("copilot usage = %d/%d cost=%v, want 0/0 cost=7", res.PromptTokens, res.CompletionTokens, res.BillingCost)
 	}
 	if res.CacheReadTokens != 0 || res.CacheWriteTokens != 0 {
 		t.Fatalf("copilot cache tokens = %d/%d, want 0/0", res.CacheReadTokens, res.CacheWriteTokens)
@@ -191,8 +191,8 @@ func TestDispatcherCountsFractionalCopilotPremiumCost(t *testing.T) {
 		},
 	})
 
-	if res.PromptTokens != 33 || res.CompletionTokens != 0 {
-		t.Fatalf("copilot usage = %d/%d, want 33/0", res.PromptTokens, res.CompletionTokens)
+	if res.PromptTokens != 0 || res.CompletionTokens != 0 || res.BillingCost != 0.33 {
+		t.Fatalf("copilot usage = %d/%d cost=%v, want 0/0 cost=0.33", res.PromptTokens, res.CompletionTokens, res.BillingCost)
 	}
 	if res.TokenSource != "copilot_request" {
 		t.Fatalf("TokenSource = %q, want copilot_request", res.TokenSource)

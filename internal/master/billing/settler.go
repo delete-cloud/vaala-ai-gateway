@@ -80,16 +80,16 @@ func (s *Settler) settleOne(ctx context.Context, agentID string, entry protocol.
 	// Calculate costs (prices are USD / 1M tokens). GitHub Copilot subscription
 	// usage is request-count based, so Copilot calls use per-model premium costs
 	// instead of token pricing.
-	inputCost := int64(float64(entry.PromptTokens) * mc.InputPrice / 1_000_000 * float64(quotaPerDollar))
-	outputCost := int64(float64(entry.CompletionTokens) * mc.OutputPrice / 1_000_000 * float64(quotaPerDollar))
+	inputCost := float64(entry.PromptTokens) * mc.InputPrice / 1_000_000 * float64(quotaPerDollar)
+	outputCost := float64(entry.CompletionTokens) * mc.OutputPrice / 1_000_000 * float64(quotaPerDollar)
 
-	cacheReadCost := int64(0)
+	cacheReadCost := 0.0
 	if entry.CacheReadTokens > 0 && mc.CacheReadPrice > 0 {
-		cacheReadCost = int64(float64(entry.CacheReadTokens) * mc.CacheReadPrice / 1_000_000 * float64(quotaPerDollar))
+		cacheReadCost = float64(entry.CacheReadTokens) * mc.CacheReadPrice / 1_000_000 * float64(quotaPerDollar)
 	}
-	cacheWriteCost := int64(0)
+	cacheWriteCost := 0.0
 	if entry.CacheWriteTokens > 0 && mc.CacheWritePrice > 0 {
-		cacheWriteCost = int64(float64(entry.CacheWriteTokens) * mc.CacheWritePrice / 1_000_000 * float64(quotaPerDollar))
+		cacheWriteCost = float64(entry.CacheWriteTokens) * mc.CacheWritePrice / 1_000_000 * float64(quotaPerDollar)
 	}
 
 	totalCost := inputCost + outputCost + cacheReadCost + cacheWriteCost
@@ -171,7 +171,7 @@ func (s *Settler) settleOne(ctx context.Context, agentID string, entry protocol.
 			logFields := []zap.Field{
 				zap.String("request_id", entry.RequestID),
 				zap.String("token_name", entry.TokenName),
-				zap.Int64("total_cost", totalCost),
+				zap.Float64("total_cost", totalCost),
 			}
 			if err := m.Billing().UpsertTokenDaily(&log); err != nil {
 				return err
@@ -220,12 +220,11 @@ func (s *Settler) settleOne(ctx context.Context, agentID string, entry protocol.
 func isCopilotCountedRequest(entry protocol.UsageLogEntry, channelType int) bool {
 	return channelType == consts.ChannelTypeGitHubCopilot &&
 		entry.TokenSource == "copilot_request" &&
-		entry.PromptTokens > 0 &&
 		entry.Status != 0
 }
 
-func copilotRequestCost(entry protocol.UsageLogEntry) int64 {
-	return int64(entry.PromptTokens)
+func copilotRequestCost(entry protocol.UsageLogEntry) float64 {
+	return entry.BillingCost
 }
 
 type channelSnapshot struct {

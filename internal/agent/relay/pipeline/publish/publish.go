@@ -147,6 +147,7 @@ func (p *Publisher) fillExecution(e *protocol.UsageLogEntry, rctx *state.RelayCo
 	case exec.Err == nil:
 		e.PromptTokens = out.PromptTokens
 		e.CompletionTokens = out.CompletionTokens
+		e.BillingCost = out.BillingCost
 		e.CacheReadTokens = out.CacheReadTokens
 		e.CacheWriteTokens = out.CacheWriteTokens
 		e.TokenSource = out.TokenSource
@@ -155,6 +156,7 @@ func (p *Publisher) fillExecution(e *protocol.UsageLogEntry, rctx *state.RelayCo
 		// 老 handler.go mid-stream fail 分支只写 prompt / completion / token_source。
 		e.PromptTokens = out.PromptTokens
 		e.CompletionTokens = out.CompletionTokens
+		e.BillingCost = out.BillingCost
 		e.TokenSource = out.TokenSource
 		// CacheReadTokens / CacheWriteTokens / FirstResponseMs 保持零值——
 		// 复刻老 struct literal 没列这三个字段的行为。

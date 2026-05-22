@@ -16,35 +16,35 @@ type TokenBillingListFilter struct {
 }
 
 type TokenBillingListItem struct {
-	UserID           uint   `json:"user_id"`
-	TokenID          uint   `json:"token_id"`
-	TokenName        string `json:"token_name"`
-	RequestCount     int64  `json:"request_count"`
-	SuccessCount     int64  `json:"success_count"`
-	FailedCount      int64  `json:"failed_count"`
-	PromptTokens     int64  `json:"prompt_tokens"`
-	CompletionTokens int64  `json:"completion_tokens"`
-	CacheReadTokens  int64  `json:"cache_read_tokens"`
-	CacheWriteTokens int64  `json:"cache_write_tokens"`
-	InputCost        int64  `json:"input_cost"`
-	OutputCost       int64  `json:"output_cost"`
-	TotalCost        int64  `json:"total_cost"`
-	LastUsedAt       int64  `json:"last_used_at"`
+	UserID           uint    `json:"user_id"`
+	TokenID          uint    `json:"token_id"`
+	TokenName        string  `json:"token_name"`
+	RequestCount     int64   `json:"request_count"`
+	SuccessCount     int64   `json:"success_count"`
+	FailedCount      int64   `json:"failed_count"`
+	PromptTokens     int64   `json:"prompt_tokens"`
+	CompletionTokens int64   `json:"completion_tokens"`
+	CacheReadTokens  int64   `json:"cache_read_tokens"`
+	CacheWriteTokens int64   `json:"cache_write_tokens"`
+	InputCost        float64 `json:"input_cost"`
+	OutputCost       float64 `json:"output_cost"`
+	TotalCost        float64 `json:"total_cost"`
+	LastUsedAt       int64   `json:"last_used_at"`
 }
 
 type TokenBillingDailyItem struct {
-	Date             string `json:"date"`
-	RequestCount     int64  `json:"request_count"`
-	SuccessCount     int64  `json:"success_count"`
-	FailedCount      int64  `json:"failed_count"`
-	PromptTokens     int64  `json:"prompt_tokens"`
-	CompletionTokens int64  `json:"completion_tokens"`
-	CacheReadTokens  int64  `json:"cache_read_tokens"`
-	CacheWriteTokens int64  `json:"cache_write_tokens"`
-	InputCost        int64  `json:"input_cost"`
-	OutputCost       int64  `json:"output_cost"`
-	TotalCost        int64  `json:"total_cost"`
-	LastUsedAt       int64  `json:"last_used_at"`
+	Date             string  `json:"date"`
+	RequestCount     int64   `json:"request_count"`
+	SuccessCount     int64   `json:"success_count"`
+	FailedCount      int64   `json:"failed_count"`
+	PromptTokens     int64   `json:"prompt_tokens"`
+	CompletionTokens int64   `json:"completion_tokens"`
+	CacheReadTokens  int64   `json:"cache_read_tokens"`
+	CacheWriteTokens int64   `json:"cache_write_tokens"`
+	InputCost        float64 `json:"input_cost"`
+	OutputCost       float64 `json:"output_cost"`
+	TotalCost        float64 `json:"total_cost"`
+	LastUsedAt       int64   `json:"last_used_at"`
 }
 
 type ChannelBillingListFilter struct {
@@ -54,39 +54,39 @@ type ChannelBillingListFilter struct {
 }
 
 type ChannelBillingListItem struct {
-	ChannelID        uint   `json:"channel_id"`
-	ChannelName      string `json:"channel_name"`
-	ChannelType      int    `json:"channel_type"`
-	RequestCount     int64  `json:"request_count"`
-	SuccessCount     int64  `json:"success_count"`
-	FailedCount      int64  `json:"failed_count"`
-	PromptTokens     int64  `json:"prompt_tokens"`
-	CompletionTokens int64  `json:"completion_tokens"`
-	CacheReadTokens  int64  `json:"cache_read_tokens"`
-	CacheWriteTokens int64  `json:"cache_write_tokens"`
-	InputCost        int64  `json:"input_cost"`
-	OutputCost       int64  `json:"output_cost"`
-	TotalCost        int64  `json:"total_cost"`
-	LastUsedAt       int64  `json:"last_used_at"`
+	ChannelID        uint    `json:"channel_id"`
+	ChannelName      string  `json:"channel_name"`
+	ChannelType      int     `json:"channel_type"`
+	RequestCount     int64   `json:"request_count"`
+	SuccessCount     int64   `json:"success_count"`
+	FailedCount      int64   `json:"failed_count"`
+	PromptTokens     int64   `json:"prompt_tokens"`
+	CompletionTokens int64   `json:"completion_tokens"`
+	CacheReadTokens  int64   `json:"cache_read_tokens"`
+	CacheWriteTokens int64   `json:"cache_write_tokens"`
+	InputCost        float64 `json:"input_cost"`
+	OutputCost       float64 `json:"output_cost"`
+	TotalCost        float64 `json:"total_cost"`
+	LastUsedAt       int64   `json:"last_used_at"`
 }
 
 type ChannelBillingDailyItem struct {
-	Date             string `json:"date"`
-	RequestCount     int64  `json:"request_count"`
-	SuccessCount     int64  `json:"success_count"`
-	FailedCount      int64  `json:"failed_count"`
-	PromptTokens     int64  `json:"prompt_tokens"`
-	CompletionTokens int64  `json:"completion_tokens"`
-	CacheReadTokens  int64  `json:"cache_read_tokens"`
-	CacheWriteTokens int64  `json:"cache_write_tokens"`
-	InputCost        int64  `json:"input_cost"`
-	OutputCost       int64  `json:"output_cost"`
-	TotalCost        int64  `json:"total_cost"`
-	LastUsedAt       int64  `json:"last_used_at"`
+	Date             string  `json:"date"`
+	RequestCount     int64   `json:"request_count"`
+	SuccessCount     int64   `json:"success_count"`
+	FailedCount      int64   `json:"failed_count"`
+	PromptTokens     int64   `json:"prompt_tokens"`
+	CompletionTokens int64   `json:"completion_tokens"`
+	CacheReadTokens  int64   `json:"cache_read_tokens"`
+	CacheWriteTokens int64   `json:"cache_write_tokens"`
+	InputCost        float64 `json:"input_cost"`
+	OutputCost       float64 `json:"output_cost"`
+	TotalCost        float64 `json:"total_cost"`
+	LastUsedAt       int64   `json:"last_used_at"`
 }
 
 type BillingOverview struct {
-	TotalCost    int64   `json:"total_cost"`
+	TotalCost    float64 `json:"total_cost"`
 	RequestCount int64   `json:"request_count"`
 	SuccessRate  float64 `json:"success_rate"`
 	ActiveTokens int64   `json:"active_tokens"`
@@ -272,7 +272,7 @@ func (q *adminBillingQuery) GetBillingOverview(filter TokenBillingListFilter) (*
 	db := applyTokenBillingFilter(q.ctx.GetDB().Model(&models.TokenDailyBilling{}), filter)
 
 	type overviewRow struct {
-		TotalCost    int64
+		TotalCost    float64
 		RequestCount int64
 		SuccessCount int64
 		ActiveTokens int64

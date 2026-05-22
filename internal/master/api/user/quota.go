@@ -15,7 +15,7 @@ func (h *Handler) UpdateQuota(c *app.Context, req UpdateQuotaRequest) (api.Statu
 		return api.StatusResponse{}, api.BadRequestError("delta is required", nil)
 	}
 
-	delta, ok := toInt64(deltaRaw)
+	delta, ok := toFloat64(deltaRaw)
 	if !ok {
 		return api.StatusResponse{}, api.BadRequestError("delta must be number", nil)
 	}
@@ -35,32 +35,32 @@ func (h *Handler) UpdateQuota(c *app.Context, req UpdateQuotaRequest) (api.Statu
 	return api.StatusResponse{Status: "ok"}, nil
 }
 
-func toInt64(v any) (int64, bool) {
+func toFloat64(v any) (float64, bool) {
 	switch val := v.(type) {
 	case int:
-		return int64(val), true
+		return float64(val), true
 	case int8:
-		return int64(val), true
+		return float64(val), true
 	case int16:
-		return int64(val), true
+		return float64(val), true
 	case int32:
-		return int64(val), true
+		return float64(val), true
 	case int64:
-		return val, true
+		return float64(val), true
 	case uint:
-		return int64(val), true
+		return float64(val), true
 	case uint8:
-		return int64(val), true
+		return float64(val), true
 	case uint16:
-		return int64(val), true
+		return float64(val), true
 	case uint32:
-		return int64(val), true
+		return float64(val), true
 	case uint64:
-		return int64(val), true
+		return float64(val), true
 	case float32:
-		return int64(val), true
+		return float64(val), true
 	case float64:
-		return int64(val), true
+		return float64(val), true
 	default:
 		return 0, false
 	}

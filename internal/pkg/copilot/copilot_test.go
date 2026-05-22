@@ -269,17 +269,6 @@ func TestPremiumCostFromOtherSettingsAllowsKnownZeroCost(t *testing.T) {
 	}
 }
 
-func TestPremiumCostUnitsFromOtherSettingsPreservesFractionalCosts(t *testing.T) {
-	cost, ok := PremiumCostUnitsFromOtherSettings(`{"copilot_model_prices":{"gpt-5.4-mini":0.33,"gpt-5.5":7.5}}`, "gpt-5.4-mini")
-	if !ok || cost != 33 {
-		t.Fatalf("premium cost units = %d/%v, want 33/true", cost, ok)
-	}
-	cost, ok = PremiumCostUnitsFromOtherSettings(`{"copilot_model_prices":{"gpt-5.4-mini":0.33,"gpt-5.5":7.5}}`, "gpt-5.5")
-	if !ok || cost != 750 {
-		t.Fatalf("premium cost units = %d/%v, want 750/true", cost, ok)
-	}
-}
-
 func TestHasVisionInput(t *testing.T) {
 	body := []byte(`{"messages":[{"role":"user","content":[{"type":"text","text":"hi"},{"type":"image_url","image_url":{"url":"data:image/png;base64,abc"}}]}]}`)
 	if !HasVisionInput(body) {

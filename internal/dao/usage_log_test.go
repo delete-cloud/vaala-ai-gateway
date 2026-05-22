@@ -30,7 +30,7 @@ func TestUsageLogDAO_Admin(t *testing.T) {
 			t.Fatalf("List: %v", err)
 		}
 		if total != 3 {
-			t.Fatalf("expected 3, got %d", total)
+			t.Fatalf("expected 3, got %v", total)
 		}
 		_ = logs
 	})
@@ -42,7 +42,7 @@ func TestUsageLogDAO_Admin(t *testing.T) {
 			t.Fatalf("List: %v", err)
 		}
 		if total != 2 {
-			t.Fatalf("expected 2, got %d", total)
+			t.Fatalf("expected 2, got %v", total)
 		}
 		_ = logs
 	})
@@ -53,7 +53,7 @@ func TestUsageLogDAO_Admin(t *testing.T) {
 			t.Fatalf("List: %v", err)
 		}
 		if total != 1 {
-			t.Fatalf("expected 1, got %d", total)
+			t.Fatalf("expected 1, got %v", total)
 		}
 		_ = logs
 	})
@@ -64,7 +64,7 @@ func TestUsageLogDAO_Admin(t *testing.T) {
 			t.Fatalf("GetByRequestID: %v", err)
 		}
 		if log.TotalCost != 100 {
-			t.Fatalf("expected 100, got %d", log.TotalCost)
+			t.Fatalf("expected 100, got %v", log.TotalCost)
 		}
 	})
 
@@ -133,7 +133,7 @@ func TestUsageLogDAO_Admin(t *testing.T) {
 			t.Fatalf("DeleteLogsBefore: %v", err)
 		}
 		if deleted != 1 {
-			t.Fatalf("expected 1 deleted, got %d", deleted)
+			t.Fatalf("expected 1 deleted, got %v", deleted)
 		}
 	})
 
@@ -148,7 +148,7 @@ func TestUsageLogDAO_Admin(t *testing.T) {
 			t.Fatalf("DeleteTracesBefore: %v", err)
 		}
 		if deleted != 1 {
-			t.Fatalf("expected 1 deleted, got %d", deleted)
+			t.Fatalf("expected 1 deleted, got %v", deleted)
 		}
 	})
 }
@@ -173,7 +173,7 @@ func TestUsageLogDAO_UserScoped(t *testing.T) {
 			t.Fatalf("List: %v", err)
 		}
 		if total != 2 {
-			t.Fatalf("expected 2, got %d", total)
+			t.Fatalf("expected 2, got %v", total)
 		}
 		_ = logs
 	})
@@ -184,7 +184,7 @@ func TestUsageLogDAO_UserScoped(t *testing.T) {
 			t.Fatalf("GetByRequestID: %v", err)
 		}
 		if log.TotalCost != 10 {
-			t.Fatalf("expected 10, got %d", log.TotalCost)
+			t.Fatalf("expected 10, got %v", log.TotalCost)
 		}
 	})
 

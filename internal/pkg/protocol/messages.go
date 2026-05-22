@@ -38,17 +38,18 @@ type UsageReport struct {
 }
 
 type UsageLogEntry struct {
-	RequestID        string `json:"request_id"`
-	UserID           uint   `json:"user_id"`
-	TokenID          uint   `json:"token_id"`
-	ChannelID        uint   `json:"channel_id"`
-	ModelName        string `json:"model_name"`
-	PromptTokens     int    `json:"prompt_tokens"`
-	CompletionTokens int    `json:"completion_tokens"`
-	IsStream         bool   `json:"is_stream"`
-	Duration         int    `json:"duration"`
-	ClientIP         string `json:"client_ip"`
-	Timestamp        int64  `json:"timestamp"`
+	RequestID        string  `json:"request_id"`
+	UserID           uint    `json:"user_id"`
+	TokenID          uint    `json:"token_id"`
+	ChannelID        uint    `json:"channel_id"`
+	ModelName        string  `json:"model_name"`
+	PromptTokens     int     `json:"prompt_tokens"`
+	CompletionTokens int     `json:"completion_tokens"`
+	BillingCost      float64 `json:"billing_cost,omitempty"`
+	IsStream         bool    `json:"is_stream"`
+	Duration         int     `json:"duration"`
+	ClientIP         string  `json:"client_ip"`
+	Timestamp        int64   `json:"timestamp"`
 
 	// Enhanced logging fields
 	TokenName        string `json:"token_name"`
@@ -75,14 +76,14 @@ type UsageLogEntry struct {
 }
 
 type HeartbeatParams struct {
-	Uptime            int64 `json:"uptime"`
-	CachedTokens      int   `json:"cached_tokens"`
-	CachedChannels    int   `json:"cached_channels"`
-	CachedModels      int   `json:"cached_models"`
+	Uptime               int64 `json:"uptime"`
+	CachedTokens         int   `json:"cached_tokens"`
+	CachedChannels       int   `json:"cached_channels"`
+	CachedModels         int   `json:"cached_models"`
 	CachedGlobalRoutings int   `json:"cached_global_routings"`
 	CachedUserRoutings   int   `json:"cached_user_routings"`
-	ActiveConnections int   `json:"active_connections"`
-	Version           int64 `json:"version"`
+	ActiveConnections    int   `json:"active_connections"`
+	Version              int64 `json:"version"`
 
 	HTTPAddresses json.RawMessage `json:"http_addresses,omitempty"`
 	Tags          string          `json:"tags,omitempty"`

@@ -69,7 +69,7 @@ func TestEndToEndFlow(t *testing.T) {
 	resp := doReq("POST", "/api/admin/users", map[string]any{"username": "user1", "password": "pass", "role": 1})
 	if resp.StatusCode != 201 {
 		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("create user: %d %s", resp.StatusCode, body)
+		t.Fatalf("create user: %v %s", resp.StatusCode, body)
 	}
 	var user map[string]any
 	json.NewDecoder(resp.Body).Decode(&user)
@@ -77,7 +77,7 @@ func TestEndToEndFlow(t *testing.T) {
 	userID := uint(user["id"].(float64))
 
 	// Top up user quota
-	resp = doReq("PUT", fmt.Sprintf("/api/admin/users/%d/quota", userID), map[string]any{"delta": 100000})
+	resp = doReq("PUT", fmt.Sprintf("/api/admin/users/%v/quota", userID), map[string]any{"delta": 100000})
 	resp.Body.Close()
 
 	// Create mock upstream server
@@ -102,7 +102,7 @@ func TestEndToEndFlow(t *testing.T) {
 	})
 	if resp.StatusCode != 201 {
 		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("create channel: %d %s", resp.StatusCode, body)
+		t.Fatalf("create channel: %v %s", resp.StatusCode, body)
 	}
 	resp.Body.Close()
 
@@ -114,7 +114,7 @@ func TestEndToEndFlow(t *testing.T) {
 	})
 	if resp.StatusCode != 201 {
 		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("create model: %d %s", resp.StatusCode, body)
+		t.Fatalf("create model: %v %s", resp.StatusCode, body)
 	}
 	resp.Body.Close()
 
@@ -125,7 +125,7 @@ func TestEndToEndFlow(t *testing.T) {
 	})
 	if resp.StatusCode != 201 {
 		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("create token: %d %s", resp.StatusCode, body)
+		t.Fatalf("create token: %v %s", resp.StatusCode, body)
 	}
 	var tokenResp map[string]any
 	json.NewDecoder(resp.Body).Decode(&tokenResp)
@@ -171,7 +171,7 @@ func TestEndToEndFlow(t *testing.T) {
 	if store.ModelConfigCount() == 0 {
 		t.Error("no model configs synced")
 	}
-	t.Logf("synced: channels=%d models=%d version=%d (token LRU populated lazily)",
+	t.Logf("synced: channels=%v models=%v version=%v (token LRU populated lazily)",
 		store.ChannelCount(), store.ModelConfigCount(), store.Version())
 
 	// Token 走 LRU miss → RPC fetch
@@ -213,7 +213,7 @@ func TestEndToEndFlow(t *testing.T) {
 	agentRouter.ServeHTTP(w, chatReq)
 
 	if w.Code != 200 {
-		t.Fatalf("relay status = %d, body = %s", w.Code, w.Body.String())
+		t.Fatalf("relay status = %v, body = %s", w.Code, w.Body.String())
 	}
 
 	// Verify response from mock upstream (native codec re-encodes, so id may differ)
@@ -239,16 +239,16 @@ func TestEndToEndFlow(t *testing.T) {
 	if logCount == 0 {
 		t.Error("no usage logs created on master")
 	} else {
-		t.Logf("usage logs: %d", logCount)
+		t.Logf("usage logs: %v", logCount)
 	}
 
 	// Check user quota decreased
 	var updatedUser models.User
 	srv.DB.First(&updatedUser, userID)
 	if updatedUser.Quota >= 100000 {
-		t.Errorf("user quota should have decreased, still %d", updatedUser.Quota)
+		t.Errorf("user quota should have decreased, still %v", updatedUser.Quota)
 	} else {
-		t.Logf("user quota: %d (was 100000)", updatedUser.Quota)
+		t.Logf("user quota: %v (was 100000)", updatedUser.Quota)
 	}
 
 	t.Log("End-to-end test passed!")
@@ -320,7 +320,7 @@ func TestEndToEnd_ChannelTest(t *testing.T) {
 	json.NewDecoder(resp.Body).Decode(&user)
 	resp.Body.Close()
 	userID := uint(user["id"].(float64))
-	doReq("PUT", fmt.Sprintf("/api/admin/users/%d/quota", userID), map[string]any{"delta": 100000}).Body.Close()
+	doReq("PUT", fmt.Sprintf("/api/admin/users/%v/quota", userID), map[string]any{"delta": 100000}).Body.Close()
 
 	// Pre-create the __system_test__ token via API so it syncs to embedded agent.
 	// The channel test handler uses this token internally to call the relay endpoint.
@@ -345,9 +345,9 @@ func TestEndToEnd_ChannelTest(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 
 	// Test channel connectivity
-	resp = doReq("POST", fmt.Sprintf("/api/admin/channels/%d/test", chID), nil)
+	resp = doReq("POST", fmt.Sprintf("/api/admin/channels/%v/test", chID), nil)
 	if resp.StatusCode != 200 {
-		t.Fatalf("channel test status: %d", resp.StatusCode)
+		t.Fatalf("channel test status: %v", resp.StatusCode)
 	}
 	var testResult map[string]any
 	json.NewDecoder(resp.Body).Decode(&testResult)
@@ -361,14 +361,14 @@ func TestEndToEnd_ChannelTest(t *testing.T) {
 		"base_url": mockUpstream.URL, "key": "test-key", "type": 1,
 	})
 	if resp.StatusCode != 200 {
-		t.Fatalf("fetch models status: %d", resp.StatusCode)
+		t.Fatalf("fetch models status: %v", resp.StatusCode)
 	}
 	var fetchResult map[string]any
 	json.NewDecoder(resp.Body).Decode(&fetchResult)
 	resp.Body.Close()
 	fetchedModels, _ := fetchResult["models"].([]any)
 	if len(fetchedModels) != 2 {
-		t.Errorf("expected 2 fetched models, got %d", len(fetchedModels))
+		t.Errorf("expected 2 fetched models, got %v", len(fetchedModels))
 	}
 
 	t.Log("Channel test and fetch models passed!")
@@ -411,14 +411,14 @@ func TestEndToEnd_ModelSync(t *testing.T) {
 	// Sync
 	resp := doReq("POST", "/api/admin/models/sync", nil)
 	if resp.StatusCode != 200 {
-		t.Fatalf("sync status: %d", resp.StatusCode)
+		t.Fatalf("sync status: %v", resp.StatusCode)
 	}
 	var result map[string]any
 	json.NewDecoder(resp.Body).Decode(&result)
 	resp.Body.Close()
 	created := int(result["created"].(float64))
 	if created != 3 { // gpt-4o, gpt-3.5-turbo, claude-3
-		t.Errorf("expected 3 models created, got %d", created)
+		t.Errorf("expected 3 models created, got %v", created)
 	}
 
 	// Second sync should create 0
@@ -492,7 +492,7 @@ func TestEndToEnd_MasterEmbeddedRelay(t *testing.T) {
 	json.NewDecoder(resp.Body).Decode(&user)
 	resp.Body.Close()
 	userID := uint(user["id"].(float64))
-	doReq("PUT", fmt.Sprintf("/api/admin/users/%d/quota", userID), map[string]any{"delta": 100000}).Body.Close()
+	doReq("PUT", fmt.Sprintf("/api/admin/users/%v/quota", userID), map[string]any{"delta": 100000}).Body.Close()
 
 	// Create token via API
 	resp = doReq("POST", "/api/admin/tokens", map[string]any{"user_id": userID, "name": "emb-token"})
@@ -532,7 +532,7 @@ func TestEndToEnd_MasterEmbeddedRelay(t *testing.T) {
 
 	if chatResp.StatusCode != 200 {
 		body, _ := io.ReadAll(chatResp.Body)
-		t.Fatalf("embedded relay status %d: %s", chatResp.StatusCode, body)
+		t.Fatalf("embedded relay status %v: %s", chatResp.StatusCode, body)
 	}
 
 	var chatResult map[string]any

@@ -17,13 +17,13 @@ type OverviewResponse struct {
 	ConnectedAgents *int   `json:"connected_agents,omitempty"`
 
 	// Common fields
-	Tokens    int64 `json:"tokens"`
-	UsageLogs int64 `json:"usage_logs"`
-	TotalCost int64 `json:"total_cost"`
+	Tokens    int64   `json:"tokens"`
+	UsageLogs int64   `json:"usage_logs"`
+	TotalCost float64 `json:"total_cost"`
 
 	// User-only fields (nil for admin)
-	Quota     *int64 `json:"quota,omitempty"`
-	UsedQuota *int64 `json:"used_quota,omitempty"`
+	Quota     *float64 `json:"quota,omitempty"`
+	UsedQuota *float64 `json:"used_quota,omitempty"`
 }
 
 type TrendRequest struct {

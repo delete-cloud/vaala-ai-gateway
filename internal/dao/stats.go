@@ -9,7 +9,7 @@ import (
 type AdminStatsQuery interface {
 	GetOverview() (*OverviewStats, error)
 	GetTableCount(table KnownTable) (int64, error)
-	GetTotalCost(filter UsageLogListFilter) (int64, error)
+	GetTotalCost(filter UsageLogListFilter) (float64, error)
 	GetTrend(days int, userID *uint) ([]TrendItem, error)
 }
 
@@ -48,9 +48,9 @@ func (q *adminStatsQuery) GetTableCount(table KnownTable) (int64, error) {
 	return count, err
 }
 
-func (q *adminStatsQuery) GetTotalCost(filter UsageLogListFilter) (int64, error) {
+func (q *adminStatsQuery) GetTotalCost(filter UsageLogListFilter) (float64, error) {
 	db := applyUsageLogFilter(q.ctx.GetDB().Model(&models.UsageLog{}), filter)
-	var cost int64
+	var cost float64
 	err := db.Select("COALESCE(SUM(total_cost), 0)").Scan(&cost).Error
 	return cost, err
 }

@@ -44,7 +44,7 @@ func TestUserDAO(t *testing.T) {
 			t.Fatalf("GetByUsername: %v", err)
 		}
 		if u.Role != 100 {
-			t.Fatalf("expected role 100, got %d", u.Role)
+			t.Fatalf("expected role 100, got %v", u.Role)
 		}
 	})
 
@@ -54,7 +54,7 @@ func TestUserDAO(t *testing.T) {
 			t.Fatalf("List: %v", err)
 		}
 		if total != 2 {
-			t.Fatalf("expected 2, got %d", total)
+			t.Fatalf("expected 2, got %v", total)
 		}
 		_ = users
 	})
@@ -65,7 +65,7 @@ func TestUserDAO(t *testing.T) {
 			t.Fatalf("List: %v", err)
 		}
 		if total != 1 {
-			t.Fatalf("expected 1, got %d", total)
+			t.Fatalf("expected 1, got %v", total)
 		}
 		_ = users
 	})
@@ -77,7 +77,7 @@ func TestUserDAO(t *testing.T) {
 			t.Fatalf("List: %v", err)
 		}
 		if total != 1 {
-			t.Fatalf("expected 1, got %d", total)
+			t.Fatalf("expected 1, got %v", total)
 		}
 		_ = users
 	})
@@ -108,7 +108,7 @@ func TestUserDAO(t *testing.T) {
 		}
 		u, _ := q.GetByID(u1.ID)
 		if u.Quota != 1500 {
-			t.Fatalf("expected 1500, got %d", u.Quota)
+			t.Fatalf("expected 1500, got %v", u.Quota)
 		}
 	})
 
@@ -118,11 +118,11 @@ func TestUserDAO(t *testing.T) {
 			t.Fatalf("DeductQuota: %v", err)
 		}
 		if remaining != 1300 {
-			t.Fatalf("expected 1300, got %d", remaining)
+			t.Fatalf("expected 1300, got %v", remaining)
 		}
 		u, _ := q.GetByID(u1.ID)
 		if u.UsedQuota != 200 {
-			t.Fatalf("expected used_quota 200, got %d", u.UsedQuota)
+			t.Fatalf("expected used_quota 200, got %v", u.UsedQuota)
 		}
 	})
 

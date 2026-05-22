@@ -33,7 +33,7 @@ func TestTrace_500Error(t *testing.T) {
 	})
 
 	if w.Code != 502 {
-		t.Fatalf("expected 502, got %d: %s", w.Code, w.Body.String())
+		t.Fatalf("expected 502, got %v: %s", w.Code, w.Body.String())
 	}
 
 	env.WaitForLogs()
@@ -45,7 +45,7 @@ func TestTrace_500Error(t *testing.T) {
 		t.Fatalf("no usage log found: %v", result.Error)
 	}
 	if usageLog.TotalCost != 0 {
-		t.Errorf("expected total_cost=0 for failed request, got %d", usageLog.TotalCost)
+		t.Errorf("expected total_cost=0 for failed request, got %v", usageLog.TotalCost)
 	}
 
 	// Verify trace record created
@@ -59,7 +59,7 @@ func TestTrace_500Error(t *testing.T) {
 		t.Errorf("inbound_path = %q, want /v1/chat/completions", trace.InboundPath)
 	}
 	if trace.UpstreamStatus != 500 {
-		t.Errorf("upstream_status = %d, want 500", trace.UpstreamStatus)
+		t.Errorf("upstream_status = %v, want 500", trace.UpstreamStatus)
 	}
 	if trace.InboundBody == "" {
 		t.Error("inbound_body should not be empty")
@@ -88,7 +88,7 @@ func TestTrace_500Error(t *testing.T) {
 	// Verify trace API endpoint returns data
 	resp := env.DoAdmin("GET", fmt.Sprintf("/api/admin/logs/%s/trace", requestID), nil)
 	if resp.StatusCode != 200 {
-		t.Fatalf("GET trace API: expected 200, got %d", resp.StatusCode)
+		t.Fatalf("GET trace API: expected 200, got %v", resp.StatusCode)
 	}
 	var apiTrace map[string]any
 	json.NewDecoder(resp.Body).Decode(&apiTrace)
@@ -104,7 +104,7 @@ func TestTrace_500Error(t *testing.T) {
 	// Verify 404 for nonexistent trace
 	resp = env.DoAdmin("GET", "/api/admin/logs/nonexistent/trace", nil)
 	if resp.StatusCode != 404 {
-		t.Errorf("expected 404 for nonexistent trace, got %d", resp.StatusCode)
+		t.Errorf("expected 404 for nonexistent trace, got %v", resp.StatusCode)
 	}
 	resp.Body.Close()
 }
@@ -130,7 +130,7 @@ func TestTrace_4xxError(t *testing.T) {
 
 	// 4xx errors are forwarded directly to the client
 	if w.Code != 429 {
-		t.Fatalf("expected 429, got %d: %s", w.Code, w.Body.String())
+		t.Fatalf("expected 429, got %v: %s", w.Code, w.Body.String())
 	}
 
 	env.WaitForLogs()
@@ -142,7 +142,7 @@ func TestTrace_4xxError(t *testing.T) {
 	}
 
 	if trace.UpstreamStatus != 429 {
-		t.Errorf("upstream_status = %d, want 429", trace.UpstreamStatus)
+		t.Errorf("upstream_status = %v, want 429", trace.UpstreamStatus)
 	}
 
 	if !strings.Contains(trace.ResponseBody, "rate_limit") {
@@ -169,7 +169,7 @@ func TestTrace_ConnectionError(t *testing.T) {
 	})
 
 	if w.Code != 502 {
-		t.Fatalf("expected 502, got %d: %s", w.Code, w.Body.String())
+		t.Fatalf("expected 502, got %v: %s", w.Code, w.Body.String())
 	}
 
 	env.WaitForLogs()
@@ -190,7 +190,7 @@ func TestTrace_ConnectionError(t *testing.T) {
 
 	// Response headers/body may be empty since connection was refused - that's OK
 	// But the trace itself should exist
-	t.Logf("trace captured for connection error: upstream_status=%d, response_body_len=%d",
+	t.Logf("trace captured for connection error: upstream_status=%v, response_body_len=%v",
 		trace.UpstreamStatus, len(trace.ResponseBody))
 }
 
@@ -211,7 +211,7 @@ func TestRelay_TraceEnabled(t *testing.T) {
 	})
 	if resp.StatusCode != 201 {
 		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("create token: %d %s", resp.StatusCode, body)
+		t.Fatalf("create token: %v %s", resp.StatusCode, body)
 	}
 	var tokenResp map[string]any
 	json.NewDecoder(resp.Body).Decode(&tokenResp)
@@ -221,12 +221,12 @@ func TestRelay_TraceEnabled(t *testing.T) {
 	env.SyncFromMaster()
 
 	// Send a successful request with trace_enabled=true
-	requestIDOn := fmt.Sprintf("trace-on-%d", time.Now().UnixNano())
+	requestIDOn := fmt.Sprintf("trace-on-%v", time.Now().UnixNano())
 	w := env.SendChatWithHeaders(apiKeyOn, "gpt-4o", "hello", map[string]string{
 		consts.HeaderXRequestID: requestIDOn,
 	})
 	if w.Code != 200 {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+		t.Fatalf("expected 200, got %v: %s", w.Code, w.Body.String())
 	}
 
 	env.WaitForLogs()
@@ -257,12 +257,12 @@ func TestRelay_TraceEnabled(t *testing.T) {
 	apiKeyOff := env.CreateToken(userID, "trace-off-token")
 	env.SyncFromMaster()
 
-	requestIDOff := fmt.Sprintf("trace-off-%d", time.Now().UnixNano())
+	requestIDOff := fmt.Sprintf("trace-off-%v", time.Now().UnixNano())
 	w = env.SendChatWithHeaders(apiKeyOff, "gpt-4o", "hello again", map[string]string{
 		consts.HeaderXRequestID: requestIDOff,
 	})
 	if w.Code != 200 {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+		t.Fatalf("expected 200, got %v: %s", w.Code, w.Body.String())
 	}
 
 	env.WaitForLogs()

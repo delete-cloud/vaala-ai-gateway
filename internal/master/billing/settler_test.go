@@ -35,21 +35,21 @@ func TestSettleUsage_CopilotRequestConsumesReportedPremiumCost(t *testing.T) {
 	bus := eventbus.NewMemoryBus()
 	logger, _ := zap.NewDevelopment()
 
-	db.Create(&models.User{Username: "copilot-user", Password: "x", Role: 1, Status: 1, Quota: 1000})
+	db.Create(&models.User{Username: "copilot-user", Password: "x", Role: 1, Status: 1, Quota: 10})
 
 	settler := NewSettler(appProv, bus, logger)
 	settler.Settle(context.Background(), "test-agent", []protocol.UsageLogEntry{
 		{
-			RequestID:    "req-copilot-1",
-			UserID:       1,
-			TokenID:      1,
-			ChannelID:    1,
-			ModelName:    "gpt-5",
-			PromptTokens: 33,
-			Status:       1,
-			TokenSource:  "copilot_request",
-			Other:        `{"channel_type":1001,"channel_name":"github-copilot"}`,
-			Timestamp:    time.Now().Unix(),
+			RequestID:   "req-copilot-1",
+			UserID:      1,
+			TokenID:     1,
+			ChannelID:   1,
+			ModelName:   "gpt-5",
+			BillingCost: 0.33,
+			Status:      1,
+			TokenSource: "copilot_request",
+			Other:       `{"channel_type":1001,"channel_name":"github-copilot"}`,
+			Timestamp:   time.Now().Unix(),
 		},
 	})
 
@@ -58,18 +58,18 @@ func TestSettleUsage_CopilotRequestConsumesReportedPremiumCost(t *testing.T) {
 		t.Fatalf("query usage log failed: %v", err)
 	}
 	if log.ChannelType != consts.ChannelTypeGitHubCopilot {
-		t.Fatalf("channel_type = %d, want %d", log.ChannelType, consts.ChannelTypeGitHubCopilot)
+		t.Fatalf("channel_type = %v, want %v", log.ChannelType, consts.ChannelTypeGitHubCopilot)
 	}
-	if log.TotalCost != 33 || log.InputCost != 33 || log.OutputCost != 0 {
-		t.Fatalf("copilot costs input=%d output=%d total=%d, want 33/0/33", log.InputCost, log.OutputCost, log.TotalCost)
+	if log.TotalCost != 0.33 || log.InputCost != 0.33 || log.OutputCost != 0 {
+		t.Fatalf("copilot costs input=%v output=%v total=%v, want 0.33/0/0.33", log.InputCost, log.OutputCost, log.TotalCost)
 	}
 
 	var user models.User
 	if err := db.First(&user, 1).Error; err != nil {
 		t.Fatalf("query user failed: %v", err)
 	}
-	if user.Quota != 967 || user.UsedQuota != 33 {
-		t.Fatalf("quota=%d used=%d, want 967/33", user.Quota, user.UsedQuota)
+	if user.Quota != 9.67 || user.UsedQuota != 0.33 {
+		t.Fatalf("quota=%v used=%v, want 9.67/0.33", user.Quota, user.UsedQuota)
 	}
 }
 
@@ -102,17 +102,17 @@ func TestSettleUsage(t *testing.T) {
 	var logCount int64
 	db.Model(&models.UsageLog{}).Count(&logCount)
 	if logCount != 1 {
-		t.Errorf("usage logs = %d, want 1", logCount)
+		t.Errorf("usage logs = %v, want 1", logCount)
 	}
 
 	// Check user quota decreased
 	var user models.User
 	db.First(&user, 1)
 	if user.Quota >= 10000 {
-		t.Errorf("quota should have decreased, got %d", user.Quota)
+		t.Errorf("quota should have decreased, got %v", user.Quota)
 	}
 	if user.UsedQuota <= 0 {
-		t.Errorf("used_quota should be > 0, got %d", user.UsedQuota)
+		t.Errorf("used_quota should be > 0, got %v", user.UsedQuota)
 	}
 
 	// Test deduplication
@@ -121,7 +121,7 @@ func TestSettleUsage(t *testing.T) {
 	})
 	db.Model(&models.UsageLog{}).Count(&logCount)
 	if logCount != 1 {
-		t.Errorf("duplicate should be ignored, got %d logs", logCount)
+		t.Errorf("duplicate should be ignored, got %v logs", logCount)
 	}
 }
 
@@ -160,7 +160,7 @@ func TestQuotaDepletion(t *testing.T) {
 	var token models.Token
 	db.First(&token, 1)
 	if token.Status != 0 {
-		t.Errorf("token status = %d, want 0 (disabled)", token.Status)
+		t.Errorf("token status = %v, want 0 (disabled)", token.Status)
 	}
 }
 
@@ -194,10 +194,10 @@ func TestSettleUsage_SystemTestOwnerlessPersistsUsageLogWithoutQuotaDeduction(t 
 		t.Errorf("query usage log failed: %v", err)
 	} else {
 		if log.UserID != 0 {
-			t.Fatalf("user_id = %d, want 0", log.UserID)
+			t.Fatalf("user_id = %v, want 0", log.UserID)
 		}
 		if log.TotalCost <= 0 {
-			t.Fatalf("total_cost = %d, want > 0", log.TotalCost)
+			t.Fatalf("total_cost = %v, want > 0", log.TotalCost)
 		}
 	}
 
@@ -206,10 +206,10 @@ func TestSettleUsage_SystemTestOwnerlessPersistsUsageLogWithoutQuotaDeduction(t 
 		t.Fatalf("query sentinel user failed: %v", err)
 	}
 	if user.Quota != 10000 {
-		t.Fatalf("quota = %d, want 10000", user.Quota)
+		t.Fatalf("quota = %v, want 10000", user.Quota)
 	}
 	if user.UsedQuota != 0 {
-		t.Fatalf("used_quota = %d, want 0", user.UsedQuota)
+		t.Fatalf("used_quota = %v, want 0", user.UsedQuota)
 	}
 }
 
@@ -243,10 +243,10 @@ func TestSettleUsage_NonSystemOwnerlessPersistsUsageLogWithoutUserDeduction(t *t
 		t.Errorf("query usage log failed: %v", err)
 	} else {
 		if log.UserID != 0 {
-			t.Fatalf("user_id = %d, want 0", log.UserID)
+			t.Fatalf("user_id = %v, want 0", log.UserID)
 		}
 		if log.TotalCost <= 0 {
-			t.Fatalf("total_cost = %d, want > 0", log.TotalCost)
+			t.Fatalf("total_cost = %v, want > 0", log.TotalCost)
 		}
 	}
 
@@ -255,10 +255,10 @@ func TestSettleUsage_NonSystemOwnerlessPersistsUsageLogWithoutUserDeduction(t *t
 		t.Fatalf("query sentinel user failed: %v", err)
 	}
 	if user.Quota != 10000 {
-		t.Fatalf("quota = %d, want 10000", user.Quota)
+		t.Fatalf("quota = %v, want 10000", user.Quota)
 	}
 	if user.UsedQuota != 0 {
-		t.Fatalf("used_quota = %d, want 0", user.UsedQuota)
+		t.Fatalf("used_quota = %v, want 0", user.UsedQuota)
 	}
 }
 
@@ -291,7 +291,7 @@ func TestSettleUsagePersistsFailedStatus(t *testing.T) {
 		t.Fatalf("query usage log failed: %v", err)
 	}
 	if log.Status != 0 {
-		t.Fatalf("status = %d, want 0", log.Status)
+		t.Fatalf("status = %v, want 0", log.Status)
 	}
 	if log.ErrorMessage != "upstream returned 503" {
 		t.Fatalf("error_message = %q, want %q", log.ErrorMessage, "upstream returned 503")
@@ -331,13 +331,13 @@ func TestSettleUsage_EmptyModelDoesNotWarnAndUsesZeroCost(t *testing.T) {
 		t.Fatalf("query usage log failed: %v", err)
 	}
 	if log.TotalCost != 0 {
-		t.Fatalf("total_cost = %d, want 0", log.TotalCost)
+		t.Fatalf("total_cost = %v, want 0", log.TotalCost)
 	}
 	if log.ModelName != "" {
 		t.Fatalf("model_name = %q, want empty", log.ModelName)
 	}
 	if log.Status != 0 {
-		t.Fatalf("status = %d, want 0", log.Status)
+		t.Fatalf("status = %v, want 0", log.Status)
 	}
 }
 
@@ -487,7 +487,7 @@ func TestSettler_WritesBillingRollups(t *testing.T) {
 		t.Fatalf("channel_name = %q, want %q", log.ChannelName, "openai-primary")
 	}
 	if log.ChannelType != 1 {
-		t.Fatalf("channel_type = %d, want 1", log.ChannelType)
+		t.Fatalf("channel_type = %v, want 1", log.ChannelType)
 	}
 
 	var tokenDaily models.TokenDailyBilling
@@ -498,13 +498,13 @@ func TestSettler_WritesBillingRollups(t *testing.T) {
 		t.Fatalf("token_name = %q, want %q", tokenDaily.TokenName, "primary-key")
 	}
 	if tokenDaily.RequestCount != 1 {
-		t.Fatalf("request_count = %d, want 1", tokenDaily.RequestCount)
+		t.Fatalf("request_count = %v, want 1", tokenDaily.RequestCount)
 	}
 	if tokenDaily.SuccessCount != 1 {
-		t.Fatalf("success_count = %d, want 1", tokenDaily.SuccessCount)
+		t.Fatalf("success_count = %v, want 1", tokenDaily.SuccessCount)
 	}
 	if tokenDaily.TotalCost != log.TotalCost {
-		t.Fatalf("total_cost = %d, want %d", tokenDaily.TotalCost, log.TotalCost)
+		t.Fatalf("total_cost = %v, want %v", tokenDaily.TotalCost, log.TotalCost)
 	}
 
 	var channelDaily models.ChannelDailyBilling
@@ -515,16 +515,16 @@ func TestSettler_WritesBillingRollups(t *testing.T) {
 		t.Fatalf("channel_name = %q, want %q", channelDaily.ChannelName, "openai-primary")
 	}
 	if channelDaily.ChannelType != 1 {
-		t.Fatalf("channel_type = %d, want 1", channelDaily.ChannelType)
+		t.Fatalf("channel_type = %v, want 1", channelDaily.ChannelType)
 	}
 	if channelDaily.RequestCount != 1 {
-		t.Fatalf("request_count = %d, want 1", channelDaily.RequestCount)
+		t.Fatalf("request_count = %v, want 1", channelDaily.RequestCount)
 	}
 	if channelDaily.SuccessCount != 1 {
-		t.Fatalf("success_count = %d, want 1", channelDaily.SuccessCount)
+		t.Fatalf("success_count = %v, want 1", channelDaily.SuccessCount)
 	}
 	if channelDaily.TotalCost != log.TotalCost {
-		t.Fatalf("total_cost = %d, want %d", channelDaily.TotalCost, log.TotalCost)
+		t.Fatalf("total_cost = %v, want %v", channelDaily.TotalCost, log.TotalCost)
 	}
 }
 
@@ -559,13 +559,13 @@ func TestSettler_TracksFailedRequests(t *testing.T) {
 		t.Fatalf("query token daily billing failed: %v", err)
 	}
 	if tokenDaily.RequestCount != 1 {
-		t.Fatalf("request_count = %d, want 1", tokenDaily.RequestCount)
+		t.Fatalf("request_count = %v, want 1", tokenDaily.RequestCount)
 	}
 	if tokenDaily.SuccessCount != 0 {
-		t.Fatalf("success_count = %d, want 0", tokenDaily.SuccessCount)
+		t.Fatalf("success_count = %v, want 0", tokenDaily.SuccessCount)
 	}
 	if tokenDaily.FailedCount != 1 {
-		t.Fatalf("failed_count = %d, want 1", tokenDaily.FailedCount)
+		t.Fatalf("failed_count = %v, want 1", tokenDaily.FailedCount)
 	}
 
 	var channelDaily models.ChannelDailyBilling
@@ -573,13 +573,13 @@ func TestSettler_TracksFailedRequests(t *testing.T) {
 		t.Fatalf("query channel daily billing failed: %v", err)
 	}
 	if channelDaily.RequestCount != 1 {
-		t.Fatalf("request_count = %d, want 1", channelDaily.RequestCount)
+		t.Fatalf("request_count = %v, want 1", channelDaily.RequestCount)
 	}
 	if channelDaily.SuccessCount != 0 {
-		t.Fatalf("success_count = %d, want 0", channelDaily.SuccessCount)
+		t.Fatalf("success_count = %v, want 0", channelDaily.SuccessCount)
 	}
 	if channelDaily.FailedCount != 1 {
-		t.Fatalf("failed_count = %d, want 1", channelDaily.FailedCount)
+		t.Fatalf("failed_count = %v, want 1", channelDaily.FailedCount)
 	}
 }
 
@@ -660,7 +660,7 @@ func TestSettler_TraceDataEmpty_NoTraceRow(t *testing.T) {
 		t.Fatalf("read back UsageLog: %v", err)
 	}
 	if got.UpstreamDispatchMs != 100 {
-		t.Errorf("UpstreamDispatchMs = %d, want 100 (timing must always be saved)", got.UpstreamDispatchMs)
+		t.Errorf("UpstreamDispatchMs = %v, want 100 (timing must always be saved)", got.UpstreamDispatchMs)
 	}
 	if got.HasTrace {
 		t.Errorf("HasTrace = true, want false (TraceData was empty)")
@@ -670,7 +670,7 @@ func TestSettler_TraceDataEmpty_NoTraceRow(t *testing.T) {
 	var traceCount int64
 	db.Model(&models.UsageLogTrace{}).Where("request_id = ?", "req-trace-empty").Count(&traceCount)
 	if traceCount != 0 {
-		t.Errorf("UsageLogTrace rows = %d, want 0 (TraceData was empty)", traceCount)
+		t.Errorf("UsageLogTrace rows = %v, want 0 (TraceData was empty)", traceCount)
 	}
 }
 
@@ -735,7 +735,7 @@ func TestSettler_TraceDataNonEmpty_FailedRequest(t *testing.T) {
 		t.Fatalf("read back UsageLogTrace: %v", err)
 	}
 	if trace.UpstreamStatus != 502 {
-		t.Errorf("UsageLogTrace.UpstreamStatus = %d, want 502", trace.UpstreamStatus)
+		t.Errorf("UsageLogTrace.UpstreamStatus = %v, want 502", trace.UpstreamStatus)
 	}
 }
 
@@ -772,7 +772,7 @@ func TestSettler_IgnoresDuplicateRequestID(t *testing.T) {
 		t.Fatalf("count usage logs failed: %v", err)
 	}
 	if logCount != 1 {
-		t.Fatalf("usage_logs = %d, want 1", logCount)
+		t.Fatalf("usage_logs = %v, want 1", logCount)
 	}
 
 	var tokenRollupCount int64
@@ -780,7 +780,7 @@ func TestSettler_IgnoresDuplicateRequestID(t *testing.T) {
 		t.Fatalf("count token daily billing failed: %v", err)
 	}
 	if tokenRollupCount != 1 {
-		t.Fatalf("token_daily_billings = %d, want 1", tokenRollupCount)
+		t.Fatalf("token_daily_billings = %v, want 1", tokenRollupCount)
 	}
 
 	var tokenDaily models.TokenDailyBilling
@@ -788,7 +788,7 @@ func TestSettler_IgnoresDuplicateRequestID(t *testing.T) {
 		t.Fatalf("query token daily billing failed: %v", err)
 	}
 	if tokenDaily.RequestCount != 1 {
-		t.Fatalf("request_count = %d, want 1", tokenDaily.RequestCount)
+		t.Fatalf("request_count = %v, want 1", tokenDaily.RequestCount)
 	}
 
 	var channelRollupCount int64
@@ -796,7 +796,7 @@ func TestSettler_IgnoresDuplicateRequestID(t *testing.T) {
 		t.Fatalf("count channel daily billing failed: %v", err)
 	}
 	if channelRollupCount != 1 {
-		t.Fatalf("channel_daily_billings = %d, want 1", channelRollupCount)
+		t.Fatalf("channel_daily_billings = %v, want 1", channelRollupCount)
 	}
 
 	var channelDaily models.ChannelDailyBilling
@@ -804,6 +804,6 @@ func TestSettler_IgnoresDuplicateRequestID(t *testing.T) {
 		t.Fatalf("query channel daily billing failed: %v", err)
 	}
 	if channelDaily.RequestCount != 1 {
-		t.Fatalf("request_count = %d, want 1", channelDaily.RequestCount)
+		t.Fatalf("request_count = %v, want 1", channelDaily.RequestCount)
 	}
 }

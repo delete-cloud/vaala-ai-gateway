@@ -23,11 +23,6 @@ const (
 	DefaultBaseURL       = "https://api.githubcopilot.com"
 	DefaultOAuthClientID = "Iv1.b507a08c87ecfe98"
 
-	// Copilot premium costs are fractional request multipliers. Existing
-	// billing/quota fields are int64, so store them as centi-premium units:
-	// 0.33 => 33, 1 => 100, 7.5 => 750.
-	PremiumCostUnitScale = 100
-
 	HeaderInitiator     = "x-initiator"
 	HeaderOpenAIIntent  = "Openai-Intent"
 	HeaderVisionRequest = "Copilot-Vision-Request"
@@ -378,14 +373,6 @@ func PremiumCostFromOtherSettings(raw, model string) (float64, bool) {
 		return 0, false
 	}
 	return price, true
-}
-
-func PremiumCostUnitsFromOtherSettings(raw, model string) (int, bool) {
-	price, ok := PremiumCostFromOtherSettings(raw, model)
-	if !ok {
-		return 0, false
-	}
-	return int(price*PremiumCostUnitScale + 0.5), true
 }
 
 func ExchangeGitHubToken(ctx context.Context, client *http.Client, enterpriseDomain, githubToken string) (string, error) {

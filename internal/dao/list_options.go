@@ -64,11 +64,11 @@ type UserGroupListFilter struct {
 
 // TrendItem holds aggregated usage data for a single day.
 type TrendItem struct {
-	Date             string `json:"date"`
-	Requests         int64  `json:"requests"`
-	PromptTokens     int64  `json:"prompt_tokens"`
-	CompletionTokens int64  `json:"completion_tokens"`
-	Cost             int64  `json:"cost"`
+	Date             string  `json:"date"`
+	Requests         int64   `json:"requests"`
+	PromptTokens     int64   `json:"prompt_tokens"`
+	CompletionTokens int64   `json:"completion_tokens"`
+	Cost             float64 `json:"cost"`
 }
 
 // OverviewStats holds cross-entity aggregate counts for the admin dashboard.
@@ -79,7 +79,7 @@ type OverviewStats struct {
 	AgentCount       int64
 	ModelConfigCount int64
 	UsageLogCount    int64
-	TotalCost        int64
+	TotalCost        float64
 }
 
 // KnownTable constrains table names for stats queries.

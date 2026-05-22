@@ -97,6 +97,7 @@ type Attempt struct {
 type AttemptResult struct {
 	PromptTokens     int
 	CompletionTokens int
+	BillingCost      float64
 	CacheReadTokens  int
 	CacheWriteTokens int
 	FirstResponseMs  int

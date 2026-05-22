@@ -24,7 +24,7 @@ func TestBillingTokenScope(t *testing.T) {
 			"role":     1,
 		})
 		if w.Code != 201 {
-			t.Fatalf("create user %s: %d %s", username, w.Code, w.Body.String())
+			t.Fatalf("create user %s: %v %s", username, w.Code, w.Body.String())
 		}
 		return int(jsonBody(t, w)["id"].(float64))
 	}
@@ -48,23 +48,23 @@ func TestBillingTokenScope(t *testing.T) {
 
 	w := doAlice("GET", "/api/billing/tokens", nil)
 	if w.Code != 200 {
-		t.Fatalf("alice list billing tokens: %d %s", w.Code, w.Body.String())
+		t.Fatalf("alice list billing tokens: %v %s", w.Code, w.Body.String())
 	}
 	aliceResp := jsonBody(t, w)
 	if total := int(aliceResp["total"].(float64)); total != 2 {
-		t.Fatalf("alice total = %d, want 2", total)
+		t.Fatalf("alice total = %v, want 2", total)
 	}
 	aliceData, _ := aliceResp["data"].([]any)
 	for _, item := range aliceData {
 		row := item.(map[string]any)
 		if int(row["user_id"].(float64)) != aliceUserID {
-			t.Fatalf("alice saw user_id=%v, want %d", row["user_id"], aliceUserID)
+			t.Fatalf("alice saw user_id=%v, want %v", row["user_id"], aliceUserID)
 		}
 	}
 
 	w = doAlice("GET", "/api/billing/tokens?user_id="+itoa(bobUserID), nil)
 	if w.Code != 200 {
-		t.Fatalf("alice list billing tokens with user override: %d %s", w.Code, w.Body.String())
+		t.Fatalf("alice list billing tokens with user override: %v %s", w.Code, w.Body.String())
 	}
 	overrideResp := jsonBody(t, w)
 	overrideData, _ := overrideResp["data"].([]any)
@@ -77,18 +77,18 @@ func TestBillingTokenScope(t *testing.T) {
 
 	w = doAdmin("GET", "/api/billing/tokens?user_id="+itoa(bobUserID), nil)
 	if w.Code != 200 {
-		t.Fatalf("admin list billing tokens by user: %d %s", w.Code, w.Body.String())
+		t.Fatalf("admin list billing tokens by user: %v %s", w.Code, w.Body.String())
 	}
 	adminResp := jsonBody(t, w)
 	if total := int(adminResp["total"].(float64)); total != 1 {
-		t.Fatalf("admin total = %d, want 1", total)
+		t.Fatalf("admin total = %v, want 1", total)
 	}
 	adminData, _ := adminResp["data"].([]any)
 	if len(adminData) != 1 {
-		t.Fatalf("admin rows = %d, want 1", len(adminData))
+		t.Fatalf("admin rows = %v, want 1", len(adminData))
 	}
 	if int(adminData[0].(map[string]any)["user_id"].(float64)) != bobUserID {
-		t.Fatalf("admin row user_id = %v, want %d", adminData[0].(map[string]any)["user_id"], bobUserID)
+		t.Fatalf("admin row user_id = %v, want %v", adminData[0].(map[string]any)["user_id"], bobUserID)
 	}
 }
 
@@ -107,7 +107,7 @@ func TestBillingOverview(t *testing.T) {
 		"role":     1,
 	})
 	if w.Code != 201 {
-		t.Fatalf("create overview user: %d %s", w.Code, w.Body.String())
+		t.Fatalf("create overview user: %v %s", w.Code, w.Body.String())
 	}
 	userID := int(jsonBody(t, w)["id"].(float64))
 
@@ -123,7 +123,7 @@ func TestBillingOverview(t *testing.T) {
 
 	w = doUser("GET", "/api/billing/overview", nil)
 	if w.Code != 200 {
-		t.Fatalf("user billing overview: %d %s", w.Code, w.Body.String())
+		t.Fatalf("user billing overview: %v %s", w.Code, w.Body.String())
 	}
 	overview := jsonBody(t, w)
 	if int(overview["total_cost"].(float64)) != 450 {
@@ -156,7 +156,7 @@ func TestBillingTokenDailyOwnership(t *testing.T) {
 			"role":     1,
 		})
 		if w.Code != 201 {
-			t.Fatalf("create user %s: %d %s", username, w.Code, w.Body.String())
+			t.Fatalf("create user %s: %v %s", username, w.Code, w.Body.String())
 		}
 		return int(jsonBody(t, w)["id"].(float64))
 	}
@@ -176,12 +176,12 @@ func TestBillingTokenDailyOwnership(t *testing.T) {
 
 	w := doAlice("GET", "/api/billing/tokens/2/daily", nil)
 	if w.Code != 200 {
-		t.Fatalf("alice get own token daily billing: %d %s", w.Code, w.Body.String())
+		t.Fatalf("alice get own token daily billing: %v %s", w.Code, w.Body.String())
 	}
 
 	w = doAlice("GET", "/api/billing/tokens/3/daily", nil)
 	if w.Code != 404 {
-		t.Fatalf("alice get bob token daily billing: expected 404, got %d %s", w.Code, w.Body.String())
+		t.Fatalf("alice get bob token daily billing: expected 404, got %v %s", w.Code, w.Body.String())
 	}
 }
 
@@ -201,7 +201,7 @@ func TestBillingChannelScope(t *testing.T) {
 			"role":     1,
 		})
 		if w.Code != 201 {
-			t.Fatalf("create user %s: %d %s", username, w.Code, w.Body.String())
+			t.Fatalf("create user %s: %v %s", username, w.Code, w.Body.String())
 		}
 		return int(jsonBody(t, w)["id"].(float64))
 	}
@@ -246,15 +246,15 @@ func TestBillingChannelScope(t *testing.T) {
 
 	w := doAdmin("GET", "/api/admin/billing/channels", nil)
 	if w.Code != 200 {
-		t.Fatalf("admin list channel billing: %d %s", w.Code, w.Body.String())
+		t.Fatalf("admin list channel billing: %v %s", w.Code, w.Body.String())
 	}
 	resp := jsonBody(t, w)
 	if total := int(resp["total"].(float64)); total != 2 {
-		t.Fatalf("admin channel total = %d, want 2", total)
+		t.Fatalf("admin channel total = %v, want 2", total)
 	}
 	data, _ := resp["data"].([]any)
 	if len(data) != 2 {
-		t.Fatalf("admin channel rows = %d, want 2", len(data))
+		t.Fatalf("admin channel rows = %v, want 2", len(data))
 	}
 	first := data[0].(map[string]any)
 	if int(first["channel_id"].(float64)) != 11 {
@@ -266,22 +266,22 @@ func TestBillingChannelScope(t *testing.T) {
 
 	w = doAdmin("GET", "/api/admin/billing/channels/11/daily", nil)
 	if w.Code != 200 {
-		t.Fatalf("admin channel daily billing: %d %s", w.Code, w.Body.String())
+		t.Fatalf("admin channel daily billing: %v %s", w.Code, w.Body.String())
 	}
 	daily := jsonBody(t, w)
 	items, _ := daily["items"].([]any)
 	if len(items) != 2 {
-		t.Fatalf("admin channel daily rows = %d, want 2", len(items))
+		t.Fatalf("admin channel daily rows = %v, want 2", len(items))
 	}
 
 	w = doUser("GET", "/api/admin/billing/channels", nil)
 	if w.Code != 403 {
-		t.Fatalf("user channel billing should be rejected: %d %s", w.Code, w.Body.String())
+		t.Fatalf("user channel billing should be rejected: %v %s", w.Code, w.Body.String())
 	}
 
 	w = doUser("GET", "/api/admin/billing/channels/11/daily", nil)
 	if w.Code != 403 {
-		t.Fatalf("user channel daily should be rejected: %d %s", w.Code, w.Body.String())
+		t.Fatalf("user channel daily should be rejected: %v %s", w.Code, w.Body.String())
 	}
 }
 
@@ -301,7 +301,7 @@ func TestBillingChannelRebuild(t *testing.T) {
 			"role":     1,
 		})
 		if w.Code != 201 {
-			t.Fatalf("create user %s: %d %s", username, w.Code, w.Body.String())
+			t.Fatalf("create user %s: %v %s", username, w.Code, w.Body.String())
 		}
 		return int(jsonBody(t, w)["id"].(float64))
 	}
@@ -347,7 +347,7 @@ func TestBillingChannelRebuild(t *testing.T) {
 		"end_date":   "2026-04-01",
 	})
 	if w.Code != 200 {
-		t.Fatalf("rebuild channel billing: %d %s", w.Code, w.Body.String())
+		t.Fatalf("rebuild channel billing: %v %s", w.Code, w.Body.String())
 	}
 
 	w = doAdmin("POST", "/api/admin/billing/rebuild", map[string]any{
@@ -355,20 +355,20 @@ func TestBillingChannelRebuild(t *testing.T) {
 		"end_date":   "2026-04-01",
 	})
 	if w.Code != 200 {
-		t.Fatalf("rebuild channel billing second pass: %d %s", w.Code, w.Body.String())
+		t.Fatalf("rebuild channel billing second pass: %v %s", w.Code, w.Body.String())
 	}
 
 	w = doAdmin("GET", "/api/admin/billing/channels?start_date=2026-04-01&end_date=2026-04-01", nil)
 	if w.Code != 200 {
-		t.Fatalf("admin list channel billing after rebuild: %d %s", w.Code, w.Body.String())
+		t.Fatalf("admin list channel billing after rebuild: %v %s", w.Code, w.Body.String())
 	}
 	resp := jsonBody(t, w)
 	if total := int(resp["total"].(float64)); total != 1 {
-		t.Fatalf("rebuild total = %d, want 1", total)
+		t.Fatalf("rebuild total = %v, want 1", total)
 	}
 	data, _ := resp["data"].([]any)
 	if len(data) != 1 {
-		t.Fatalf("rebuild rows = %d, want 1", len(data))
+		t.Fatalf("rebuild rows = %v, want 1", len(data))
 	}
 	row := data[0].(map[string]any)
 	if int(row["channel_id"].(float64)) != 21 {
